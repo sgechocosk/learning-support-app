@@ -1,23 +1,30 @@
 import { useState, useEffect, useRef } from "react";
-import { Home, Search, PlusCircle, Bell, User } from "lucide-react";
+import {
+  User,
+  Bell,
+  Home,
+  Calendar,
+  CheckSquare,
+  Timer,
+  Gift,
+  X,
+} from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import "./index.css";
 
 const TABS = [
   { id: "home", icon: Home, label: "ホーム" },
-  { id: "search", icon: Search, label: "検索" },
-  { id: "add", icon: PlusCircle, label: "追加" },
-  { id: "bell", icon: Bell, label: "通知" },
-  { id: "user", icon: User, label: "プロフ" },
+  { id: "calendar", icon: Calendar, label: "カレンダー" },
+  { id: "checksquare", icon: CheckSquare, label: "タスク" },
+  { id: "timer", icon: Timer, label: "タイマー" },
+  { id: "gift", icon: Gift, label: "ごほうび" },
 ];
 
 export default function App() {
-  // 起動した瞬間にローカルストレージを確認し、ログイン済みなら true を初期値にする
   const initialAuth = localStorage.getItem("is_logged_in") === "true";
   const [isAuthenticated, setIsAuthenticated] = useState(initialAuth);
 
-  // 前回開いていたタブをセッションストレージから復元（なければ0）
   const initialTab = Number(sessionStorage.getItem("active_tab") || 0);
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -25,6 +32,12 @@ export default function App() {
   const [slideDirection, setSlideDirection] = useState("none");
   const [pressedTab, setPressedTab] = useState<number | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+
+  const [overlayType, setOverlayType] = useState<
+    "none" | "profile" | "notification"
+  >("none");
+  const [isOverlayClosing, setIsOverlayClosing] = useState(false);
+  const [clickPos, setClickPos] = useState({ x: 0, y: 0 });
 
   const scrollPositions = useRef<Record<number, number>>({
     0: 0,
@@ -36,7 +49,6 @@ export default function App() {
   const scrollContainerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    // 裏側で本物のセッション確認を行う
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsAuthenticated(true);
@@ -75,7 +87,6 @@ export default function App() {
     setSlideDirection(newTabIndex > activeTab ? "next" : "prev");
     setIsMoving(true);
 
-    // タブの切り替えと同時に、現在のタブ番号を保存
     setActiveTab(newTabIndex);
     sessionStorage.setItem("active_tab", String(newTabIndex));
 
@@ -91,7 +102,23 @@ export default function App() {
     }
   }, [activeTab]);
 
-  // isAuthenticated が false の時のみログイン画面を表示
+  const openOverlay = (
+    e: React.MouseEvent,
+    type: "profile" | "notification",
+  ) => {
+    setClickPos({ x: e.clientX, y: e.clientY });
+    setOverlayType(type);
+    setIsOverlayClosing(false);
+  };
+
+  const closeOverlay = () => {
+    setIsOverlayClosing(true);
+    setTimeout(() => {
+      setOverlayType("none");
+      setIsOverlayClosing(false);
+    }, 450);
+  };
+
   if (!isAuthenticated) {
     return <Auth onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
@@ -100,8 +127,71 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+      <style>{`
+        :root {
+          --click-x: ${clickPos.x}px;
+          --click-y: ${clickPos.y}px;
+        }
+        @keyframes ripple-in {
+          0% {
+            clip-path: circle(0px at var(--click-x) var(--click-y));
+          }
+          100% {
+            clip-path: circle(150% at var(--click-x) var(--click-y));
+          }
+        }
+        @keyframes ripple-out {
+          0% {
+            clip-path: circle(150% at var(--click-x) var(--click-y));
+          }
+          100% {
+            clip-path: circle(0px at var(--click-x) var(--click-y));
+          }
+        }
+        @keyframes slide-down-in {
+          0% {
+            transform: translateY(-100%);
+          }
+          100% {
+            transform: translateY(0);
+          }
+        }
+        @keyframes slide-up-out {
+          0% {
+            transform: translateY(0);
+          }
+          100% {
+            transform: translateY(-100%);
+          }
+        }
+        .animate-ripple-in {
+          animation: ripple-in 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        .animate-ripple-out {
+          animation: ripple-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+        }
+        .animate-slide-down-in {
+          animation: slide-down-in 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        .animate-slide-up-out {
+          animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+        }
+      `}</style>
+
       <header className="flex-none h-16 bg-sky-300 text-white shadow-sm z-20 flex items-center justify-center font-bold text-lg relative">
+        <button
+          onClick={(e) => openOverlay(e, "profile")}
+          className="absolute left-4 p-2 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors"
+        >
+          <User size={24} />
+        </button>
         UI Test
+        <button
+          onClick={(e) => openOverlay(e, "notification")}
+          className="absolute right-4 p-2 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors"
+        >
+          <Bell size={24} />
+        </button>
       </header>
 
       <div className="flex-1 overflow-hidden relative bg-gray-50">
@@ -249,6 +339,60 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {overlayType !== "none" && (
+        <div
+          className={`fixed inset-0 z-50 flex flex-col bg-sky-50 ${
+            isOverlayClosing
+              ? overlayType === "profile"
+                ? "animate-ripple-out"
+                : "animate-slide-up-out"
+              : overlayType === "profile"
+                ? "animate-ripple-in"
+                : "animate-slide-down-in"
+          }`}
+        >
+          <header className="flex-none h-16 bg-sky-300 text-white shadow-sm flex items-center px-4 relative">
+            {overlayType === "profile" ? (
+              <button
+                onClick={closeOverlay}
+                className="absolute left-4 p-2 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors z-10"
+              >
+                <X size={24} />
+              </button>
+            ) : (
+              <button
+                onClick={closeOverlay}
+                className="absolute right-4 p-2 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors z-10"
+              >
+                <Bell size={24} />
+              </button>
+            )}
+
+            <h1 className="absolute inset-0 flex items-center justify-center font-bold text-lg">
+              {overlayType === "profile" ? "プロフィール" : "お知らせ"}
+            </h1>
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center">
+            <div className="w-24 h-24 bg-white text-sky-400 rounded-full flex items-center justify-center mb-6 shadow-sm">
+              {overlayType === "profile" ? (
+                <User size={48} />
+              ) : (
+                <Bell size={48} />
+              )}
+            </div>
+            <h2 className="text-xl font-bold text-sky-800 mb-2">
+              {overlayType === "profile" ? "プロフィール画面" : "お知らせ画面"}
+            </h2>
+            <p className="text-sky-700 text-center text-sm px-4">
+              {overlayType === "profile"
+                ? "ユーザー情報や設定を管理する画面のテンプレートです。"
+                : "最新の通知やメッセージを確認する画面のテンプレートです。"}
+            </p>
+          </main>
+        </div>
+      )}
     </div>
   );
 }

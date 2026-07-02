@@ -38,6 +38,7 @@ export default function App() {
   >("none");
   const [isOverlayClosing, setIsOverlayClosing] = useState(false);
   const [clickPos, setClickPos] = useState({ x: 0, y: 0 });
+  const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
 
   const scrollPositions = useRef<Record<number, number>>({
     0: 0,
@@ -49,15 +50,25 @@ export default function App() {
   const scrollContainerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    const initUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
         setIsAuthenticated(true);
         localStorage.setItem("is_logged_in", "true");
+        if (user.last_sign_in_at) {
+          setLastSignInAt(
+            new Date(user.last_sign_in_at).toLocaleString("ja-JP"),
+          );
+        }
       } else {
         setIsAuthenticated(false);
         localStorage.removeItem("is_logged_in");
       }
-    });
+    };
+
+    initUser();
 
     const {
       data: { subscription },
@@ -65,6 +76,11 @@ export default function App() {
       if (session) {
         setIsAuthenticated(true);
         localStorage.setItem("is_logged_in", "true");
+        if (session.user.last_sign_in_at) {
+          setLastSignInAt(
+            new Date(session.user.last_sign_in_at).toLocaleString("ja-JP"),
+          );
+        }
       } else {
         setIsAuthenticated(false);
         localStorage.removeItem("is_logged_in");
@@ -387,7 +403,9 @@ export default function App() {
             </h2>
             <p className="text-sky-700 text-center text-sm px-4">
               {overlayType === "profile"
-                ? "ユーザー情報や設定を管理する画面のテンプレートです。"
+                ? lastSignInAt
+                  ? `最終ログイン: ${lastSignInAt}`
+                  : ""
                 : "最新の通知やメッセージを確認する画面のテンプレートです。"}
             </p>
           </main>

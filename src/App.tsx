@@ -13,9 +13,15 @@ const TABS = [
 ];
 
 export default function App() {
-  const [session, setSession] = useState<any>(null);
+  // 起動した瞬間にローカルストレージを確認し、ログイン済みなら true を初期値にする
+  const initialAuth = localStorage.getItem("is_logged_in") === "true";
+  const [isAuthenticated, setIsAuthenticated] = useState(initialAuth);
+
+  // 前回開いていたタブをセッションストレージから復元（なければ0）
+  const initialTab = Number(sessionStorage.getItem("active_tab") || 0);
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [message, setMessage] = useState("ボタンをタップしてください");
-  const [activeTab, setActiveTab] = useState(0);
   const [slideDirection, setSlideDirection] = useState("none");
   const [pressedTab, setPressedTab] = useState<number | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -30,14 +36,27 @@ export default function App() {
   const scrollContainerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    // 裏側で本物のセッション確認を行う
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+      if (session) {
+        setIsAuthenticated(true);
+        localStorage.setItem("is_logged_in", "true");
+      } else {
+        setIsAuthenticated(false);
+        localStorage.removeItem("is_logged_in");
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (session) {
+        setIsAuthenticated(true);
+        localStorage.setItem("is_logged_in", "true");
+      } else {
+        setIsAuthenticated(false);
+        localStorage.removeItem("is_logged_in");
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -55,7 +74,11 @@ export default function App() {
 
     setSlideDirection(newTabIndex > activeTab ? "next" : "prev");
     setIsMoving(true);
+
+    // タブの切り替えと同時に、現在のタブ番号を保存
     setActiveTab(newTabIndex);
+    sessionStorage.setItem("active_tab", String(newTabIndex));
+
     setMessage(`フッター: ${TABS[newTabIndex].label}がタップされました`);
 
     setTimeout(() => setIsMoving(false), 150);
@@ -68,8 +91,9 @@ export default function App() {
     }
   }, [activeTab]);
 
-  if (!session) {
-    return <Auth onLoginSuccess={() => {}} />;
+  // isAuthenticated が false の時のみログイン画面を表示
+  if (!isAuthenticated) {
+    return <Auth onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
 
   const currentTab = TABS[activeTab];

@@ -16,7 +16,6 @@ export default function Auth({ onLoginSuccess }: Props) {
     setLoading(true);
     setError("");
 
-    // Supabaseの標準認証（メールアドレスとパスワード）を使用
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -25,6 +24,7 @@ export default function Auth({ onLoginSuccess }: Props) {
     if (error) {
       setError("ログインに失敗しました。入力内容をご確認ください。");
     } else {
+      localStorage.setItem("is_logged_in", "true");
       if (onLoginSuccess) onLoginSuccess();
     }
     setLoading(false);

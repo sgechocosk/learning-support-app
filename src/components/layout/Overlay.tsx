@@ -1,5 +1,6 @@
 import { User, Bell, X } from "lucide-react";
 import type { OverlayType } from "../../types";
+import { useAuth } from "../../hooks/useAuth";
 
 interface OverlayProps {
   type: OverlayType;
@@ -14,6 +15,8 @@ export const Overlay = ({
   lastSignInAt,
   onClose,
 }: OverlayProps) => {
+  const { signOut } = useAuth();
+
   if (type === "none") return null;
 
   return (
@@ -57,13 +60,23 @@ export const Overlay = ({
         <h2 className="text-xl font-bold text-sky-800 mb-2">
           {type === "profile" ? "プロフィール画面" : "お知らせ画面"}
         </h2>
-        <p className="text-sky-700 text-center text-sm px-4">
-          {type === "profile"
-            ? lastSignInAt
-              ? `最終ログイン: ${lastSignInAt}`
-              : ""
-            : "最新の通知やメッセージを確認する画面のテンプレートです。"}
-        </p>
+        <div className="text-sky-700 text-center text-sm px-4 flex flex-col items-center gap-6 mt-2">
+          <p>
+            {type === "profile"
+              ? lastSignInAt
+                ? `最終ログイン: ${lastSignInAt}`
+                : ""
+              : "最新の通知やメッセージを確認する画面のテンプレートです。"}
+          </p>
+          {type === "profile" && (
+            <button
+              onClick={signOut}
+              className="px-6 py-2 bg-white text-sky-600 font-semibold rounded-full shadow-sm hover:bg-sky-50 active:bg-sky-100 transition-colors border border-sky-200"
+            >
+              ログアウト
+            </button>
+          )}
+        </div>
       </main>
     </div>
   );

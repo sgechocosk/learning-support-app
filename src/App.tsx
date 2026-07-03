@@ -10,7 +10,6 @@ import { TABS } from "./constants/tabs";
 import type { OverlayType } from "./types";
 import "./index.css";
 
-// 分割したページをインポート
 import Home from "./pages/Home";
 import Calendar from "./pages/Calendar";
 import Task from "./pages/Task";
@@ -93,7 +92,17 @@ export default function App() {
   };
 
   if (!isAuthenticated) {
-    return <Auth onLoginSuccess={() => setIsAuthenticated(true)} />;
+    return (
+      <Auth
+        onLoginSuccess={() => {
+          setIsAuthenticated(true);
+          setActiveTab(0);
+          sessionStorage.setItem("active_tab", "0");
+          setOverlayType("none");
+          setIsOverlayClosing(false);
+        }}
+      />
+    );
   }
 
   return (
@@ -116,7 +125,6 @@ export default function App() {
       <Header onOpenOverlay={openOverlay} />
 
       <div className="flex-1 overflow-hidden relative bg-gray-50">
-        {/* TabContentに各ページをchildrenとして渡す */}
         <TabContent
           ref={scrollContainerRef}
           activeTab={activeTab}

@@ -90,7 +90,36 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const hiddenInput = document.createElement("input");
+    hiddenInput.type = "checkbox";
+    hiddenInput.setAttribute("switch", "");
+    hiddenInput.id = "haptic-trigger-hack";
+    hiddenInput.style.position = "absolute";
+    hiddenInput.style.opacity = "0";
+    hiddenInput.style.pointerEvents = "none";
+    document.body.appendChild(hiddenInput);
+
+    const hiddenLabel = document.createElement("label");
+    hiddenLabel.htmlFor = "haptic-trigger-hack";
+    hiddenLabel.id = "haptic-label-hack";
+    hiddenLabel.style.display = "none";
+    document.body.appendChild(hiddenLabel);
+
+    return () => {
+      document.body.removeChild(hiddenInput);
+      document.body.removeChild(hiddenLabel);
+    };
+  }, []);
+
+  const triggerHaptic = () => {
+    const label = document.getElementById("haptic-label-hack");
+    if (label) label.click();
+  };
+
   const handleTabChange = (newTabIndex: number) => {
+    triggerHaptic();
+
     if (activeTab === newTabIndex) {
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -122,12 +151,14 @@ export default function App() {
     e: React.MouseEvent,
     type: "profile" | "notification",
   ) => {
+    triggerHaptic();
     setClickPos({ x: e.clientX, y: e.clientY });
     setOverlayType(type);
     setIsOverlayClosing(false);
   };
 
   const closeOverlay = () => {
+    triggerHaptic();
     setIsOverlayClosing(true);
     setTimeout(() => {
       setOverlayType("none");
@@ -249,11 +280,12 @@ export default function App() {
 
           <div className="w-full max-w-md flex justify-center my-8">
             <button
-              onClick={() =>
+              onClick={() => {
+                triggerHaptic();
                 setMessage(
                   `${currentTab.label}のメインボタンがタップされました`,
-                )
-              }
+                );
+              }}
               className="px-8 py-4 bg-sky-400 text-white font-bold rounded-full shadow-lg transform transition-transform duration-100 active:scale-95 active:bg-sky-500 w-full max-w-xs text-lg flex items-center justify-center gap-2"
             >
               メインアクション

@@ -10,6 +10,13 @@ import { TABS } from "./constants/tabs";
 import type { OverlayType } from "./types";
 import "./index.css";
 
+// 分割したページをインポート
+import Home from "./pages/Home";
+import Calendar from "./pages/Calendar";
+import Task from "./pages/Task";
+import Timer from "./pages/Timer";
+import Reward from "./pages/Reward";
+
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
   const triggerHaptic = useHaptic();
@@ -109,14 +116,24 @@ export default function App() {
       <Header onOpenOverlay={openOverlay} />
 
       <div className="flex-1 overflow-hidden relative bg-gray-50">
+        {/* TabContentに各ページをchildrenとして渡す */}
         <TabContent
           ref={scrollContainerRef}
           activeTab={activeTab}
-          currentTabInfo={TABS[activeTab]}
           slideDirection={slideDirection}
-          message={message}
-          onMainActionClick={handleMainActionClick}
-        />
+        >
+          {activeTab === 0 && (
+            <Home
+              currentTabInfo={TABS[activeTab]}
+              message={message}
+              onMainActionClick={handleMainActionClick}
+            />
+          )}
+          {activeTab === 1 && <Calendar />}
+          {activeTab === 2 && <Task />}
+          {activeTab === 3 && <Timer />}
+          {activeTab === 4 && <Reward />}
+        </TabContent>
       </div>
 
       <Footer

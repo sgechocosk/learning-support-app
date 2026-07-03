@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TABS } from "../../constants/tabs";
 
 interface FooterProps {
@@ -9,6 +9,15 @@ interface FooterProps {
 
 export const Footer = ({ activeTab, isMoving, onTabChange }: FooterProps) => {
   const [pressedTab, setPressedTab] = useState<number | null>(null);
+  const [isShrunk, setIsShrunk] = useState(false);
+
+  useEffect(() => {
+    if (isMoving) {
+      setIsShrunk(true);
+      const timer = setTimeout(() => setIsShrunk(false), 75);
+      return () => clearTimeout(timer);
+    }
+  }, [isMoving]);
 
   return (
     <footer className="flex-none relative pb-[calc(env(safe-area-inset-bottom)+20px)] drop-shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-20">
@@ -27,12 +36,20 @@ export const Footer = ({ activeTab, isMoving, onTabChange }: FooterProps) => {
             width="100"
             height="13"
             viewBox="0 0 100 12"
-            className={`absolute bottom-[-1px] text-sky-300 fill-current size-transition ${isMoving ? "translate-y-[8px]" : "translate-y-0"}`}
+            className={`absolute bottom-[-1px] text-sky-300 fill-current transition-transform ${
+              isShrunk
+                ? "duration-[75ms] ease-out translate-y-[8px]"
+                : "duration-[225ms] ease-in-out translate-y-0"
+            }`}
           >
             <path d="M0 12 C 25 12, 35 0, 50 0 C 65 0, 75 12, 100 12 Z" />
           </svg>
           <div
-            className={`absolute top-[4px] w-12 h-12 bg-white rounded-full size-transition ${isMoving ? "scale-50 translate-y-[4px]" : "scale-100 translate-y-0"}`}
+            className={`absolute top-[4px] w-12 h-12 bg-white rounded-full transition-transform ${
+              isShrunk
+                ? "duration-[75ms] ease-out scale-50 translate-y-[4px]"
+                : "duration-[225ms] ease-in-out scale-100 translate-y-0"
+            }`}
           ></div>
         </div>
         <div className="relative z-10 flex w-full h-full">

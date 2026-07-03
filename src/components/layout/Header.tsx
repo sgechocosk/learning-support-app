@@ -14,7 +14,7 @@ export const Header = ({ onOpenOverlay }: HeaderProps) => {
       >
         <User size={24} />
       </button>
-      UI Test
+      学習支援アプリ
       <button
         onClick={(e) => onOpenOverlay(e, "notification")}
         className="absolute right-4 p-2 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors"

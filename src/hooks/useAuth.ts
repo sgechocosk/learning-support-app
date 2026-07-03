@@ -47,5 +47,10 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { isAuthenticated, setIsAuthenticated, lastSignInAt };
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  return { isAuthenticated, setIsAuthenticated, lastSignInAt, signOut };
 };

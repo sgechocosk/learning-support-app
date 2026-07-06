@@ -17,7 +17,7 @@ export const Overlay = ({
   onClose,
 }: OverlayProps) => {
   const { signOut } = useAuth();
-  const { profile, isLoading } = useProfile();
+  const { profile, partnerName, isLoading } = useProfile();
 
   if (type === "none") return null;
 
@@ -70,10 +70,8 @@ export const Overlay = ({
             : "お知らせ画面"}
         </h2>
 
-        {/* isLoadingの条件を外し、profileがある場合は常に表示させる */}
         {type === "profile" && profile && (
           <div className="bg-white p-4 rounded-xl shadow-sm w-full max-w-xs mt-4 mb-2 text-sky-800">
-            {/* 学習者(learner)の場合のみポイントなどを表示 */}
             {profile.role === "learner" && (
               <>
                 <div className="flex justify-between items-center py-2 border-b border-sky-50">
@@ -93,13 +91,23 @@ export const Overlay = ({
               </>
             )}
 
-            {/* ロールは全員表示 */}
-            <div className="flex justify-between items-center py-2">
+            <div
+              className={`flex justify-between items-center py-2 ${
+                partnerName ? "border-b border-sky-50" : ""
+              }`}
+            >
               <span className="text-sm text-sky-600">ロール</span>
               <span className="font-bold">
                 {profile.role === "supporter" ? "サポーター" : "学習者"}
               </span>
             </div>
+
+            {partnerName && (
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-sky-600">ペアの相手</span>
+                <span className="font-bold">{partnerName} さん</span>
+              </div>
+            )}
           </div>
         )}
 

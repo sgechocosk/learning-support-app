@@ -4,6 +4,7 @@ import type { Profile } from "../types";
 
 interface ProfileContextType {
   profile: Profile | null;
+  partnerName: string | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   updateProfileState: (updates: Partial<Profile>) => void;
@@ -15,9 +16,9 @@ export const ProfileContext = createContext<ProfileContextType | undefined>(
 
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // isBackground が true の場合はローディング状態にしない（裏側でこっそり更新する）
   const fetchProfile = async (isBackground = false) => {
     if (!isBackground) {
       setIsLoading(true);
@@ -36,25 +37,49 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
 
       if (data && !error) {
         setProfile(data as Profile);
+
+        const { data: pairData } = await supabase
+          .from("pairs")
+          .select("*")
+          .or(`supporter_id.eq.${user.id},learner_id.eq.${user.id}`)
+          .single();
+
+        if (pairData) {
+          const partnerId =
+            data.role === "learner"
+              ? pairData.supporter_id
+              : pairData.learner_id;
+
+          const { data: partnerData } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", partnerId)
+            .single();
+
+          if (partnerData) {
+            setPartnerName(partnerData.name);
+          }
+        }
       } else {
         setProfile(null);
+        setPartnerName(null);
       }
     } else {
       setProfile(null);
+      setPartnerName(null);
     }
     setIsLoading(false);
   };
 
   useEffect(() => {
-    // 初回マウント時はローディング画面を出す (isBackground = false)
     fetchProfile(false);
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
-        // タブ切り替えなどで再認証された時はバックグラウンドで更新する
         fetchProfile(true);
       } else if (event === "SIGNED_OUT") {
         setProfile(null);
+        setPartnerName(null);
       }
     });
 
@@ -64,7 +89,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshProfile = async () => {
-    // 手動で更新する際もバックグラウンド更新にする
     await fetchProfile(true);
   };
 
@@ -74,7 +98,13 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ProfileContext.Provider
-      value={{ profile, isLoading, refreshProfile, updateProfileState }}
+      value={{
+        profile,
+        partnerName,
+        isLoading,
+        refreshProfile,
+        updateProfileState,
+      }}
     >
       {children}
     </ProfileContext.Provider>

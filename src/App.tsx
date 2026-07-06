@@ -16,6 +16,9 @@ import Task from "./pages/Task";
 import Timer from "./pages/Timer";
 import Reward from "./pages/Reward";
 
+// 作成した ProfileProvider をインポート
+import { ProfileProvider } from "./contexts/ProfileContext";
+
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
   const triggerHaptic = useHaptic();
@@ -106,56 +109,59 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-      <style>{`
-        :root {
-          --click-x: ${clickPos.x}px;
-          --click-y: ${clickPos.y}px;
-        }
-        @keyframes ripple-in { 0% { clip-path: circle(0px at var(--click-x) var(--click-y)); } 100% { clip-path: circle(150% at var(--click-x) var(--click-y)); } }
-        @keyframes ripple-out { 0% { clip-path: circle(150% at var(--click-x) var(--click-y)); } 100% { clip-path: circle(0px at var(--click-x) var(--click-y)); } }
-        @keyframes slide-down-in { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
-        @keyframes slide-up-out { 0% { transform: translateY(0); } 100% { transform: translateY(-100%); } }
-        .animate-ripple-in { animation: ripple-in 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
-        .animate-ripple-out { animation: ripple-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
-        .animate-slide-down-in { animation: slide-down-in 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
-        .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
-      `}</style>
+    // ログイン後のメインアプリケーション全体を ProfileProvider でラップする
+    <ProfileProvider>
+      <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+        <style>{`
+          :root {
+            --click-x: ${clickPos.x}px;
+            --click-y: ${clickPos.y}px;
+          }
+          @keyframes ripple-in { 0% { clip-path: circle(0px at var(--click-x) var(--click-y)); } 100% { clip-path: circle(150% at var(--click-x) var(--click-y)); } }
+          @keyframes ripple-out { 0% { clip-path: circle(150% at var(--click-x) var(--click-y)); } 100% { clip-path: circle(0px at var(--click-x) var(--click-y)); } }
+          @keyframes slide-down-in { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
+          @keyframes slide-up-out { 0% { transform: translateY(0); } 100% { transform: translateY(-100%); } }
+          .animate-ripple-in { animation: ripple-in 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+          .animate-ripple-out { animation: ripple-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
+          .animate-slide-down-in { animation: slide-down-in 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+          .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
+        `}</style>
 
-      <Header onOpenOverlay={openOverlay} />
+        <Header onOpenOverlay={openOverlay} />
 
-      <div className="flex-1 overflow-hidden relative bg-gray-50">
-        <TabContent
-          ref={scrollContainerRef}
+        <div className="flex-1 overflow-hidden relative bg-gray-50">
+          <TabContent
+            ref={scrollContainerRef}
+            activeTab={activeTab}
+            slideDirection={slideDirection}
+          >
+            {activeTab === 0 && (
+              <Home
+                currentTabInfo={TABS[activeTab]}
+                message={message}
+                onMainActionClick={handleMainActionClick}
+              />
+            )}
+            {activeTab === 1 && <Calendar />}
+            {activeTab === 2 && <Task />}
+            {activeTab === 3 && <Timer />}
+            {activeTab === 4 && <Reward />}
+          </TabContent>
+        </div>
+
+        <Footer
           activeTab={activeTab}
-          slideDirection={slideDirection}
-        >
-          {activeTab === 0 && (
-            <Home
-              currentTabInfo={TABS[activeTab]}
-              message={message}
-              onMainActionClick={handleMainActionClick}
-            />
-          )}
-          {activeTab === 1 && <Calendar />}
-          {activeTab === 2 && <Task />}
-          {activeTab === 3 && <Timer />}
-          {activeTab === 4 && <Reward />}
-        </TabContent>
+          isMoving={isMoving}
+          onTabChange={handleTabChange}
+        />
+
+        <Overlay
+          type={overlayType}
+          isClosing={isOverlayClosing}
+          lastSignInAt={lastSignInAt}
+          onClose={closeOverlay}
+        />
       </div>
-
-      <Footer
-        activeTab={activeTab}
-        isMoving={isMoving}
-        onTabChange={handleTabChange}
-      />
-
-      <Overlay
-        type={overlayType}
-        isClosing={isOverlayClosing}
-        lastSignInAt={lastSignInAt}
-        onClose={closeOverlay}
-      />
-    </div>
+    </ProfileProvider>
   );
 }

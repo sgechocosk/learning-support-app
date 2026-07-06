@@ -1,13 +1,50 @@
+import { useState } from "react";
+import { useProfile } from "../hooks/useProfile";
+import { useTask } from "../hooks/useTask";
+import { TaskForm } from "../components/task/TaskForm";
+import { TaskList } from "../components/task/TaskList";
+import type { Task as TaskType } from "../types";
+
 export default function Task() {
+  const { profile } = useProfile();
+  const { tasks, isLoading, createTask, updateTask, deleteTask, completeTask } =
+    useTask();
+  const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskType | null>(null);
+
+  const isSupporter = profile?.role === "supporter";
+
+  const handleSubmit = (input: Parameters<typeof createTask>[0]) => {
+    if (editingTask) {
+      return updateTask(editingTask.id, input);
+    }
+    return createTask(input);
+  };
+
+  const handleDelete = async (taskId: string) => {
+    if (!window.confirm("このタスクを削除しますか？")) return;
+    await deleteTask(taskId);
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full p-4">
-      <div className="flex flex-col items-center justify-center p-8 bg-white border-2 border-dashed border-sky-200 rounded-3xl shadow-sm w-full max-w-sm">
-        <div className="text-5xl mb-4 animate-bounce">📝</div>
-        <h1 className="text-xl font-bold text-sky-600 mb-2">タスク</h1>
-        <p className="text-sm text-sky-600/70 font-medium bg-sky-50 px-4 py-2 rounded-full">
-          🚧 現在、工事中です 🚧
-        </p>
-      </div>
+    <div className="flex flex-col gap-4 p-4">
+      {isSupporter && (
+        <TaskForm
+          isOpen={showForm}
+          onToggle={() => setShowForm((v) => !v)}
+          onSubmit={handleSubmit}
+          editingTask={editingTask}
+          onCancelEdit={() => setEditingTask(null)}
+        />
+      )}
+      <TaskList
+        tasks={tasks}
+        isLoading={isLoading}
+        isSupporter={isSupporter}
+        onComplete={completeTask}
+        onEdit={(task) => setEditingTask(task)}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

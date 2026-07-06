@@ -5,6 +5,7 @@ import type { Profile } from "../types";
 interface ProfileContextType {
   profile: Profile | null;
   partnerName: string | null;
+  pairId: string | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   updateProfileState: (updates: Partial<Profile>) => void;
@@ -17,6 +18,7 @@ export const ProfileContext = createContext<ProfileContextType | undefined>(
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  const [pairId, setPairId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fetchProfile = async (isBackground = false) => {
@@ -45,6 +47,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
           .single();
 
         if (pairData) {
+          setPairId(pairData.id);
           const partnerId =
             data.role === "learner"
               ? pairData.supporter_id
@@ -61,6 +64,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } else {
+        setPairId(null);
         setProfile(null);
         setPartnerName(null);
       }
@@ -101,6 +105,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       value={{
         profile,
         partnerName,
+        pairId,
         isLoading,
         refreshProfile,
         updateProfileState,

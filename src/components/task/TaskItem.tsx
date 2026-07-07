@@ -5,6 +5,7 @@ import {
   Star,
   Tag,
   CheckCircle2,
+  Circle,
 } from "lucide-react";
 import type { Task } from "../../types";
 
@@ -42,18 +43,25 @@ export const TaskItem = ({
   return (
     <div
       onClick={!isSupporter ? handleCardClick : undefined}
-      className={`group relative flex flex-row bg-white rounded-2xl border-2 transition-all overflow-hidden ${
+      className={`group relative flex flex-row bg-white rounded-2xl border-2 transition-all overflow-hidden pl-12 sm:pl-16 ${
         !isSupporter && !task.is_completed
           ? "cursor-pointer border-slate-100 shadow-sm hover:shadow-md hover:border-sky-100 hover:-translate-y-0.5 active:scale-[0.98]"
           : "border-slate-100 shadow-sm"
       } ${task.is_completed ? "opacity-60 grayscale-[0.2] bg-slate-50" : ""}`}
     >
-      {task.is_completed && !isSupporter && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none bg-white/40">
-          <CheckCircle2
-            size={56}
-            className="text-sky-400 opacity-90 drop-shadow-md"
-          />
+      {!isSupporter && (
+        <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+          {task.is_completed ? (
+            <CheckCircle2
+              size={28}
+              className="text-sky-400 opacity-90 bg-white rounded-full"
+            />
+          ) : (
+            <Circle
+              size={28}
+              className="text-slate-300 bg-white rounded-full group-hover:text-sky-300 transition-colors"
+            />
+          )}
         </div>
       )}
 

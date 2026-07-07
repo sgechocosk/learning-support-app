@@ -11,6 +11,7 @@ interface CategoryContextType {
     name: string,
     color: string,
   ) => Promise<{ error: string | null }>;
+  deleteCategory: (id: string) => Promise<{ error: string | null }>;
 }
 
 export const CategoryContext = createContext<CategoryContextType | undefined>(
@@ -52,6 +53,27 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
     return { error: error?.message ?? null };
   };
 
+  const deleteCategory = async (id: string) => {
+    const { data, error } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        error: "このカテゴリを削除する権限がないか、すでに削除されています",
+      };
+    }
+
+    await fetchCategories();
+    return { error: null };
+  };
+
   return (
     <CategoryContext.Provider
       value={{
@@ -59,6 +81,7 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         refreshCategories: fetchCategories,
         addCategory,
+        deleteCategory,
       }}
     >
       {children}

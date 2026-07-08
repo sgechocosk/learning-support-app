@@ -54,7 +54,7 @@ export const TaskForm = ({
 
   const isEditing = !!editingTask;
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressed = useRef(false);
 
   useEffect(() => {

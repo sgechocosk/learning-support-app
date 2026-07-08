@@ -10,7 +10,7 @@ interface CategoryContextType {
   addCategory: (
     name: string,
     color: string,
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ data: Category | null; error: string | null }>;
   deleteCategory: (id: string) => Promise<{ error: string | null }>;
 }
 
@@ -45,12 +45,18 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
   }, [pairId]);
 
   const addCategory = async (name: string, color: string) => {
-    if (!pairId) return { error: "pair not found" };
-    const { error } = await supabase
+    if (!pairId) return { data: null, error: "pair not found" };
+
+    const { data, error } = await supabase
       .from("categories")
-      .insert({ pair_id: pairId, name, color });
-    if (!error) await fetchCategories();
-    return { error: error?.message ?? null };
+      .insert({ pair_id: pairId, name, color })
+      .select()
+      .single();
+
+    if (error) return { data: null, error: error.message };
+
+    await fetchCategories();
+    return { data: data as Category | null, error: null };
   };
 
   const deleteCategory = async (id: string) => {

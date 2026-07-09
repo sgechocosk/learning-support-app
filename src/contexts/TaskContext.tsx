@@ -24,6 +24,7 @@ interface TaskContextType {
   ) => Promise<{ error: string | null }>;
   deleteTask: (taskId: string) => Promise<{ error: string | null }>;
   completeTask: (taskId: string) => Promise<{ error: string | null }>;
+  claimTaskPoints: (taskId: string) => Promise<{ error: string | null }>;
 }
 
 export const TaskContext = createContext<TaskContextType | undefined>(
@@ -99,7 +100,17 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const completeTask = async (taskId: string) => {
-    const { error } = await supabase.rpc("complete_task", { task_id: taskId });
+    const target = tasks.find((t) => t.id === taskId);
+    const rpcName = target?.is_completed ? "uncomplete_task" : "complete_task";
+    const { error } = await supabase.rpc(rpcName, { task_id: taskId });
+    if (!error) await fetchTasks();
+    return { error: error?.message ?? null };
+  };
+
+  const claimTaskPoints = async (taskId: string) => {
+    const { error } = await supabase.rpc("claim_task_points", {
+      task_id: taskId,
+    });
     if (!error) await fetchTasks();
     return { error: error?.message ?? null };
   };
@@ -114,6 +125,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         updateTask,
         deleteTask,
         completeTask,
+        claimTaskPoints,
       }}
     >
       {children}

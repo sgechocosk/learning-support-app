@@ -37,6 +37,7 @@ export interface Task {
   is_completed: boolean;
   scheduled_at: string | null;
   completed_at: string | null;
+  points_awarded_at: string | null;
   created_at: string;
   categories?: Category | null;
 }

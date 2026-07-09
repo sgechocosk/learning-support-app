@@ -7,8 +7,15 @@ import type { Task as TaskType } from "../types";
 
 export default function Task() {
   const { profile } = useProfile();
-  const { tasks, isLoading, createTask, updateTask, deleteTask, completeTask } =
-    useTask();
+  const {
+    tasks,
+    isLoading,
+    createTask,
+    updateTask,
+    deleteTask,
+    completeTask,
+    claimTaskPoints,
+  } = useTask();
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
 
@@ -42,6 +49,7 @@ export default function Task() {
         isLoading={isLoading}
         isSupporter={isSupporter}
         onComplete={completeTask}
+        onClaimPoints={claimTaskPoints}
         onEdit={(task) => setEditingTask(task)}
         onDelete={handleDelete}
       />

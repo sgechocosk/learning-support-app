@@ -6,6 +6,7 @@ interface TaskListProps {
   isLoading: boolean;
   isSupporter: boolean;
   onComplete: (taskId: string) => void;
+  onClaimPoints: (taskId: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
 }
@@ -15,6 +16,7 @@ export const TaskList = ({
   isLoading,
   isSupporter,
   onComplete,
+  onClaimPoints,
   onEdit,
   onDelete,
 }: TaskListProps) => {
@@ -40,6 +42,7 @@ export const TaskList = ({
           task={task}
           isSupporter={isSupporter}
           onComplete={onComplete}
+          onClaimPoints={onClaimPoints}
           onEdit={onEdit}
           onDelete={onDelete}
         />

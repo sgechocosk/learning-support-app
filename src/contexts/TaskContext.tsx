@@ -36,13 +36,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (isBackground = false) => {
     if (!pairId) {
       setTasks([]);
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    if (!isBackground) setIsLoading(true);
     const { data, error } = await supabase
       .from("tasks")
       .select("*, categories(id, name, color)")
@@ -55,6 +55,28 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     fetchTasks();
+
+    if (!pairId) return;
+
+    const channel = supabase
+      .channel(`tasks-pair-${pairId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+          filter: `pair_id=eq.${pairId}`,
+        },
+        () => {
+          fetchTasks(true);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [pairId]);
 
   const createTask: TaskContextType["createTask"] = async ({
@@ -71,7 +93,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       reward_points: rewardPoints,
       scheduled_at: scheduledAt,
     });
-    if (!error) await fetchTasks();
+    if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
   };
 
@@ -89,13 +111,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       .from("tasks")
       .update(payload)
       .eq("id", taskId);
-    if (!error) await fetchTasks();
+    if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
   };
 
   const deleteTask = async (taskId: string) => {
     const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-    if (!error) await fetchTasks();
+    if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
   };
 
@@ -103,7 +125,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     const target = tasks.find((t) => t.id === taskId);
     const rpcName = target?.is_completed ? "uncomplete_task" : "complete_task";
     const { error } = await supabase.rpc(rpcName, { task_id: taskId });
-    if (!error) await fetchTasks();
+    if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
   };
 
@@ -111,7 +133,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.rpc("claim_task_points", {
       task_id: taskId,
     });
-    if (!error) await fetchTasks();
+    if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
   };
 

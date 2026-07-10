@@ -36,6 +36,23 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const sortTasks = (list: Task[]) => {
+    return [...list].sort((a, b) => {
+      const aClaimed = a.points_awarded_at !== null;
+      const bClaimed = b.points_awarded_at !== null;
+
+      if (aClaimed !== bClaimed) return aClaimed ? 1 : -1;
+
+      const aDate = a.scheduled_at
+        ? new Date(a.scheduled_at).getTime()
+        : Infinity;
+      const bDate = b.scheduled_at
+        ? new Date(b.scheduled_at).getTime()
+        : Infinity;
+      return aDate - bDate;
+    });
+  };
+
   const fetchTasks = async (isBackground = false) => {
     if (!pairId) {
       setTasks([]);
@@ -49,7 +66,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       .eq("pair_id", pairId)
       .order("scheduled_at", { ascending: true, nullsFirst: false });
 
-    if (data && !error) setTasks(data as unknown as Task[]);
+    if (data && !error) setTasks(sortTasks(data as unknown as Task[]));
     setIsLoading(false);
   };
 

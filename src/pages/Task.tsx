@@ -34,7 +34,21 @@ export default function Task() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-1">
+      {!isSupporter && (
+        <div className="flex justify-end">
+          <span
+            className="text-sky-500 font-bold"
+            style={{
+              fontFamily:
+                '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
+            }}
+          >
+            たまったポイント：{profile?.points ?? 0}pt
+          </span>
+        </div>
+      )}
+
       {isSupporter && (
         <TaskForm
           isOpen={showForm}

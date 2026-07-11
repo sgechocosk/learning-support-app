@@ -8,12 +8,18 @@ interface TabContentProps {
 
 export const TabContent = forwardRef<HTMLElement, TabContentProps>(
   ({ activeTab, slideDirection, children }, ref) => {
+    const slideClass =
+      slideDirection === "next"
+        ? "slide-next"
+        : slideDirection === "prev"
+          ? "slide-prev"
+          : "";
+
     return (
       <section
         ref={ref}
         key={activeTab}
-        className="h-full overflow-y-auto px-4 py-4 pb-24"
-        data-slide-direction={slideDirection}
+        className={`h-full overflow-y-auto px-4 py-4 pb-24 ${slideClass}`}
       >
         {children}
       </section>

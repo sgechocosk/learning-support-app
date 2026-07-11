@@ -10,6 +10,7 @@ import {
   Gift,
 } from "lucide-react";
 import type { Task } from "../../types";
+import { useHaptic } from "../../hooks/useHaptic";
 
 const ANIMATION_STYLE = `
   @keyframes peel-top {
@@ -39,6 +40,7 @@ export const TaskItem = ({
   onEdit,
   onDelete,
 }: TaskItemProps) => {
+  const triggerHaptic = useHaptic();
   const stubRef = useRef<HTMLDivElement>(null);
   const isAnimating = useRef(false);
 
@@ -59,6 +61,7 @@ export const TaskItem = ({
   const handleLeftClick = () => {
     if (!isSupporter) {
       if (isClaimed) return;
+      triggerHaptic();
 
       if (task.is_completed) {
         if (window.confirm("タスクの完了を取り消しますか？")) {
@@ -73,6 +76,7 @@ export const TaskItem = ({
   const handleClaimClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (canClaimPoints && !isAnimating.current) {
+      triggerHaptic();
       if (window.confirm("ポイントを受け取りますか？")) {
         if (stubRef.current) {
           isAnimating.current = true;
@@ -182,6 +186,7 @@ export const TaskItem = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  triggerHaptic();
                   onEdit(task);
                 }}
                 className="p-1.5 sm:p-2 rounded-full bg-slate-100 text-sky-500 transition-colors"
@@ -191,6 +196,7 @@ export const TaskItem = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  triggerHaptic();
                   onDelete(task.id);
                 }}
                 className="p-1.5 sm:p-2 rounded-full bg-slate-100 text-red-400 transition-colors"

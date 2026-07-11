@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Plus } from "lucide-react";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
+import { useHaptic } from "../../hooks/useHaptic";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const TaskForm = ({
   editingTask = null,
   onCancelEdit,
 }: TaskFormProps) => {
+  const triggerHaptic = useHaptic();
   const { categories, addCategory, deleteCategory } = useCategory();
 
   const [title, setTitle] = useState("");
@@ -77,6 +79,7 @@ export const TaskForm = ({
   };
 
   const handleAddCategory = async () => {
+    triggerHaptic();
     if (!newCategoryName.trim()) return;
 
     const { data, error } = await addCategory(
@@ -109,6 +112,7 @@ export const TaskForm = ({
     isLongPressed.current = false;
     timerRef.current = setTimeout(() => {
       isLongPressed.current = true;
+      triggerHaptic();
       setCategoryToDelete(c);
     }, 500);
   };
@@ -125,10 +129,12 @@ export const TaskForm = ({
       isLongPressed.current = false;
       return;
     }
+    triggerHaptic();
     setCategoryId(categoryId === cId ? "" : cId);
   };
 
   const handleDeleteCategory = async () => {
+    triggerHaptic();
     if (!categoryToDelete) return;
 
     if (deleteCategory) {
@@ -148,6 +154,7 @@ export const TaskForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    triggerHaptic();
     if (!title.trim()) {
       setErrorMsg("タスク名を入力してください");
       return;
@@ -180,7 +187,10 @@ export const TaskForm = ({
     return (
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => {
+          triggerHaptic();
+          onToggle();
+        }}
         className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
       >
         <Plus size={18} />
@@ -199,6 +209,7 @@ export const TaskForm = ({
           <button
             type="button"
             onClick={() => {
+              triggerHaptic();
               resetForm();
               if (isEditing && onCancelEdit) onCancelEdit();
               else onToggle();
@@ -229,6 +240,7 @@ export const TaskForm = ({
                   onMouseLeave={stopLongPress}
                   onContextMenu={(e) => {
                     e.preventDefault();
+                    triggerHaptic();
                     setCategoryToDelete(c);
                   }}
                   className="px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors select-none"
@@ -246,7 +258,10 @@ export const TaskForm = ({
 
             <button
               type="button"
-              onClick={() => setIsCreatingCategory(true)}
+              onClick={() => {
+                triggerHaptic();
+                setIsCreatingCategory(true);
+              }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-sky-400 bg-white border border-dashed border-sky-300 rounded-full hover:bg-sky-50 transition-colors"
             >
               <Plus size={14} />
@@ -310,7 +325,10 @@ export const TaskForm = ({
               <h4 className="font-bold text-sky-800">カテゴリを新規作成</h4>
               <button
                 type="button"
-                onClick={() => setIsCreatingCategory(false)}
+                onClick={() => {
+                  triggerHaptic();
+                  setIsCreatingCategory(false);
+                }}
                 className="p-1 rounded-full hover:bg-sky-50 text-sky-400"
               >
                 <X size={18} />
@@ -343,7 +361,10 @@ export const TaskForm = ({
               </button>
               <button
                 type="button"
-                onClick={() => setIsCreatingCategory(false)}
+                onClick={() => {
+                  triggerHaptic();
+                  setIsCreatingCategory(false);
+                }}
                 className="flex-1 py-2 text-sm font-semibold bg-white text-sky-600 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors"
               >
                 キャンセル
@@ -369,7 +390,10 @@ export const TaskForm = ({
               </button>
               <button
                 type="button"
-                onClick={() => setCategoryToDelete(null)}
+                onClick={() => {
+                  triggerHaptic();
+                  setCategoryToDelete(null);
+                }}
                 className="flex-1 py-2 text-sm font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
               >
                 キャンセル

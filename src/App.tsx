@@ -18,6 +18,8 @@ import Reward from "./pages/Reward";
 
 // 作成した ProfileProvider をインポート
 import { ProfileProvider } from "./contexts/ProfileContext";
+import { CategoryProvider } from "./contexts/CategoryContext";
+import { TaskProvider } from "./contexts/TaskContext";
 
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
@@ -111,8 +113,10 @@ export default function App() {
   return (
     // ログイン後のメインアプリケーション全体を ProfileProvider でラップする
     <ProfileProvider>
-      <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-        <style>{`
+      <CategoryProvider>
+        <TaskProvider>
+          <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+            <style>{`
           :root {
             --click-x: ${clickPos.x}px;
             --click-y: ${clickPos.y}px;
@@ -127,41 +131,43 @@ export default function App() {
           .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
         `}</style>
 
-        <Header onOpenOverlay={openOverlay} />
+            <Header onOpenOverlay={openOverlay} />
 
-        <div className="flex-1 overflow-hidden relative bg-gray-50">
-          <TabContent
-            ref={scrollContainerRef}
-            activeTab={activeTab}
-            slideDirection={slideDirection}
-          >
-            {activeTab === 0 && (
-              <Home
-                currentTabInfo={TABS[activeTab]}
-                message={message}
-                onMainActionClick={handleMainActionClick}
-              />
-            )}
-            {activeTab === 1 && <Calendar />}
-            {activeTab === 2 && <Task />}
-            {activeTab === 3 && <Timer />}
-            {activeTab === 4 && <Reward />}
-          </TabContent>
-        </div>
+            <div className="flex-1 overflow-hidden relative bg-gray-50">
+              <TabContent
+                ref={scrollContainerRef}
+                activeTab={activeTab}
+                slideDirection={slideDirection}
+              >
+                {activeTab === 0 && (
+                  <Home
+                    currentTabInfo={TABS[activeTab]}
+                    message={message}
+                    onMainActionClick={handleMainActionClick}
+                  />
+                )}
+                {activeTab === 1 && <Calendar />}
+                {activeTab === 2 && <Task />}
+                {activeTab === 3 && <Timer />}
+                {activeTab === 4 && <Reward />}
+              </TabContent>
+            </div>
 
-        <Footer
-          activeTab={activeTab}
-          isMoving={isMoving}
-          onTabChange={handleTabChange}
-        />
+            <Footer
+              activeTab={activeTab}
+              isMoving={isMoving}
+              onTabChange={handleTabChange}
+            />
 
-        <Overlay
-          type={overlayType}
-          isClosing={isOverlayClosing}
-          lastSignInAt={lastSignInAt}
-          onClose={closeOverlay}
-        />
-      </div>
+            <Overlay
+              type={overlayType}
+              isClosing={isOverlayClosing}
+              lastSignInAt={lastSignInAt}
+              onClose={closeOverlay}
+            />
+          </div>
+        </TaskProvider>
+      </CategoryProvider>
     </ProfileProvider>
   );
 }

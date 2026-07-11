@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useProfile } from "../hooks/useProfile";
 import { useTask } from "../hooks/useTask";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { TaskForm } from "../components/task/TaskForm";
 import { TaskList } from "../components/task/TaskList";
+import { PullToRefreshIndicator } from "../components/ui/PullToRefreshIndicator";
 import type { Task as TaskType } from "../types";
 
 export default function Task() {
@@ -10,6 +12,7 @@ export default function Task() {
   const {
     tasks,
     isLoading,
+    refreshTasks,
     createTask,
     updateTask,
     deleteTask,
@@ -18,6 +21,11 @@ export default function Task() {
   } = useTask();
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
+
+  const { containerRef, pullDistance, isRefreshing, isReady } =
+    usePullToRefresh<HTMLDivElement>({
+      onRefresh: refreshTasks,
+    });
 
   const isSupporter = profile?.role === "supporter";
 
@@ -34,7 +42,12 @@ export default function Task() {
   };
 
   return (
-    <div className="flex flex-col gap-1">
+    <div ref={containerRef} className="flex flex-col gap-1">
+      <PullToRefreshIndicator
+        pullDistance={pullDistance}
+        isRefreshing={isRefreshing}
+        isReady={isReady}
+      />
       {!isSupporter && (
         <div className="flex justify-end">
           <span

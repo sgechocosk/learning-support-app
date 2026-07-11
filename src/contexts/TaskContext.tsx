@@ -159,7 +159,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       value={{
         tasks,
         isLoading,
-        refreshTasks: fetchTasks,
+        refreshTasks: async () => await fetchTasks(false),
         createTask,
         updateTask,
         deleteTask,

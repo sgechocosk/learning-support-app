@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PullToRefresh from "react-simple-pull-to-refresh";
 import { useProfile } from "../hooks/useProfile";
 import { useTask } from "../hooks/useTask";
 import { TaskForm } from "../components/task/TaskForm";
@@ -15,6 +16,7 @@ export default function Task() {
     deleteTask,
     completeTask,
     claimTaskPoints,
+    refreshTasks,
   } = useTask();
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
@@ -33,40 +35,67 @@ export default function Task() {
     await deleteTask(taskId);
   };
 
-  return (
-    <div className="flex flex-col gap-1">
-      {!isSupporter && (
-        <div className="flex justify-end">
-          <span
-            className="text-sky-500 font-bold"
-            style={{
-              fontFamily:
-                '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
-            }}
-          >
-            たまったポイント：{profile?.points ?? 0}pt
-          </span>
-        </div>
-      )}
+  const handleRefresh = async () => {
+    if (refreshTasks) {
+      await refreshTasks();
+    }
+  };
 
-      {isSupporter && (
-        <TaskForm
-          isOpen={showForm}
-          onToggle={() => setShowForm((v) => !v)}
-          onSubmit={handleSubmit}
-          editingTask={editingTask}
-          onCancelEdit={() => setEditingTask(null)}
-        />
-      )}
-      <TaskList
-        tasks={tasks}
-        isLoading={isLoading}
-        isSupporter={isSupporter}
-        onComplete={completeTask}
-        onClaimPoints={claimTaskPoints}
-        onEdit={(task) => setEditingTask(task)}
-        onDelete={handleDelete}
-      />
+  const customPullingContent = (
+    <div className="py-4 text-center text-sky-500 font-bold text-sm">
+      ↓ さらに引っ張って更新 ↓
     </div>
+  );
+
+  const customRefreshingContent = (
+    <div className="py-4 text-center text-sky-500 font-bold text-sm animate-pulse">
+      更新中...
+    </div>
+  );
+
+  return (
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      pullingContent={customPullingContent}
+      refreshingContent={customRefreshingContent}
+      pullDownThreshold={70}
+      maxPullDownDistance={100}
+      resistance={2}
+    >
+      <div className="flex flex-col gap-1 min-h-[calc(100vh-100px)]">
+        {!isSupporter && (
+          <div className="flex justify-end">
+            <span
+              className="text-sky-500 font-bold"
+              style={{
+                fontFamily:
+                  '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
+              }}
+            >
+              たまったポイント：{profile?.points ?? 0}pt
+            </span>
+          </div>
+        )}
+
+        {isSupporter && (
+          <TaskForm
+            isOpen={showForm}
+            onToggle={() => setShowForm((v) => !v)}
+            onSubmit={handleSubmit}
+            editingTask={editingTask}
+            onCancelEdit={() => setEditingTask(null)}
+          />
+        )}
+        <TaskList
+          tasks={tasks}
+          isLoading={isLoading}
+          isSupporter={isSupporter}
+          onComplete={completeTask}
+          onClaimPoints={claimTaskPoints}
+          onEdit={(task) => setEditingTask(task)}
+          onDelete={handleDelete}
+        />
+      </div>
+    </PullToRefresh>
   );
 }

@@ -37,7 +37,7 @@ export const TaskForm = ({
 
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
-  const [rewardPoints, setRewardPoints] = useState<number>(10);
+  const [rewardPoints, setRewardPoints] = useState<number | "">(10);
   const [scheduledAt, setScheduledAt] = useState<string>("");
 
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -161,7 +161,7 @@ export const TaskForm = ({
       scheduledAt: scheduledAt
         ? new Date(`${scheduledAt}T00:00:00`).toISOString()
         : null,
-      rewardPoints,
+      rewardPoints: rewardPoints === "" ? 0 : rewardPoints,
     });
 
     setIsSubmitting(false);
@@ -272,7 +272,10 @@ export const TaskForm = ({
             type="number"
             min={0}
             value={rewardPoints}
-            onChange={(e) => setRewardPoints(Number(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              setRewardPoints(val === "" ? "" : Number(val));
+            }}
             className="border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
           />
         </div>

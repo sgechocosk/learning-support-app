@@ -9,6 +9,7 @@ body {
   overscroll-behavior-y: none;
   overflow: hidden;
   margin: 0;
+  overscroll-behavior-y: none;
 }
 .spring-bounce {
   transition-timing-function: cubic-bezier(0.25, 1.2, 0.4, 1);

@@ -53,10 +53,25 @@ export const TaskItem = ({
 
   const formattedDate = task.scheduled_at
     ? new Date(task.scheduled_at).toLocaleDateString("ja-JP", {
+        year:
+          new Date(task.scheduled_at).getFullYear() === new Date().getFullYear()
+            ? undefined
+            : "numeric",
         month: "numeric",
         day: "numeric",
       })
     : "--/--";
+
+  const isToday = (() => {
+    if (!task.scheduled_at) return false;
+    const scheduled = new Date(task.scheduled_at);
+    const today = new Date();
+    return (
+      scheduled.getFullYear() === today.getFullYear() &&
+      scheduled.getMonth() === today.getMonth() &&
+      scheduled.getDate() === today.getDate()
+    );
+  })();
 
   const handleLeftClick = () => {
     if (!isSupporter) {
@@ -110,6 +125,74 @@ export const TaskItem = ({
     }
   };
 
+  if (isSupporter) {
+    return (
+      <div
+        className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl border-2 border-slate-100 shadow-sm transition-all ${
+          task.is_completed
+            ? "opacity-60 grayscale-[0.2] bg-slate-50"
+            : "bg-white"
+        }`}
+      >
+        <div className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-1 rounded-md shrink-0">
+          <Calendar size={12} />
+          <span className="text-[10px] font-bold tracking-wider whitespace-nowrap">
+            {formattedDate}
+          </span>
+        </div>
+
+        <span
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-white shadow-sm shrink-0"
+          style={{ backgroundColor: categoryColor }}
+        >
+          <Tag size={10} />
+          <span className="truncate max-w-[64px]">{categoryName}</span>
+        </span>
+
+        <span className="flex items-center shrink-0 text-sky-500 text-xs font-black ml-auto">
+          +{task.reward_points}pt
+        </span>
+
+        {!task.is_completed && (
+          <div className="flex gap-1 shrink-0">
+            <button
+              onClick={() => {
+                triggerHaptic();
+                onEdit(task);
+              }}
+              className="p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                onDelete(task.id);
+              }}
+              className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )}
+
+        {isClaimed && (
+          <span className="shrink-0 text-[10px] font-black text-red-500/70 border-2 border-red-500/50 rounded px-1.5 py-0.5">
+            GET!
+          </span>
+        )}
+
+        <p
+          className={`w-full basis-full font-bold text-sm break-words ${
+            task.is_completed ? "line-through text-slate-400" : "text-slate-700"
+          }`}
+        >
+          {task.title}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{ANIMATION_STYLE}</style>
@@ -119,30 +202,28 @@ export const TaskItem = ({
         }`}
       >
         <div
-          onClick={!isSupporter && !isClaimed ? handleLeftClick : undefined}
+          onClick={!isClaimed ? handleLeftClick : undefined}
           className={`p-3 sm:p-5 pl-12 sm:pl-16 flex-1 min-w-0 relative z-20 flex flex-col border-2 border-slate-100 shadow-sm rounded-l-2xl ${
             !isClaimed ? "border-r-0" : ""
-          } ${task.is_completed ? "bg-slate-50" : "bg-white"} ${
-            !isSupporter && !isClaimed
+          } ${task.is_completed ? "bg-slate-50" : isToday ? "bg-orange-50" : "bg-white"} ${
+            !isClaimed
               ? "cursor-pointer active:scale-[0.98] transition-all"
               : ""
           }`}
         >
-          {!isSupporter && (
-            <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
-              {task.is_completed ? (
-                <CheckCircle2
-                  size={28}
-                  className="text-sky-400 opacity-90 bg-white rounded-full"
-                />
-              ) : (
-                <Circle
-                  size={28}
-                  className="text-slate-300 bg-white rounded-full transition-colors"
-                />
-              )}
-            </div>
-          )}
+          <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+            {task.is_completed ? (
+              <CheckCircle2
+                size={28}
+                className="text-sky-400 opacity-90 bg-white rounded-full"
+              />
+            ) : (
+              <Circle
+                size={28}
+                className="text-slate-300 bg-white rounded-full transition-colors"
+              />
+            )}
+          </div>
 
           <div className="flex flex-wrap justify-between items-center gap-2 mb-2 sm:mb-3">
             <div className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
@@ -175,35 +256,10 @@ export const TaskItem = ({
             </p>
           </div>
 
-          {!isSupporter && task.is_completed && !isClaimed && (
+          {task.is_completed && !isClaimed && (
             <p className="text-[10px] sm:text-xs font-bold text-slate-400 mt-1">
               タップで完了を取り消す
             </p>
-          )}
-
-          {isSupporter && !task.is_completed && (
-            <div className="flex gap-2 mt-2 sm:mt-3">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  triggerHaptic();
-                  onEdit(task);
-                }}
-                className="p-1.5 sm:p-2 rounded-full bg-slate-100 text-sky-500 transition-colors"
-              >
-                <Pencil size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  triggerHaptic();
-                  onDelete(task.id);
-                }}
-                className="p-1.5 sm:p-2 rounded-full bg-slate-100 text-red-400 transition-colors"
-              >
-                <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-            </div>
           )}
 
           {isClaimed && (

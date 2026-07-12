@@ -68,6 +68,15 @@ export const TaskForm = ({
     }
   }, [editingTask]);
 
+  useEffect(() => {
+    if (!isEditing) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [isEditing]);
+
   const resetForm = () => {
     setTitle("");
     setCategoryId("");
@@ -199,8 +208,14 @@ export const TaskForm = ({
     );
   }
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-4">
+  const formContent = (
+    <div
+      className={
+        isEditing
+          ? "bg-white rounded-xl shadow-xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto"
+          : "bg-white rounded-xl shadow-sm p-4"
+      }
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sky-800">
@@ -319,7 +334,7 @@ export const TaskForm = ({
       </form>
 
       {isCreatingCategory && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sky-800">カテゴリを新規作成</h4>
@@ -375,7 +390,7 @@ export const TaskForm = ({
       )}
 
       {categoryToDelete && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm flex flex-col gap-4">
             <h4 className="font-bold text-slate-800 text-center">
               「{categoryToDelete.name}」を削除しますか？
@@ -404,4 +419,14 @@ export const TaskForm = ({
       )}
     </div>
   );
+
+  if (isEditing) {
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        {formContent}
+      </div>
+    );
+  }
+
+  return formContent;
 };

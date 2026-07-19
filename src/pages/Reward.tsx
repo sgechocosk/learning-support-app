@@ -19,6 +19,8 @@ export default function Reward() {
     updateReward,
     deleteReward,
     redeemReward,
+    restockReward,
+    reduceStockReward,
   } = useReward();
 
   const [showForm, setShowForm] = useState(false);
@@ -42,7 +44,6 @@ export default function Reward() {
           title: string;
           description: string | null;
           requiredPoints: number;
-          remainingQuantity: number | null;
           imageUrl?: string | null;
         },
   ) => {
@@ -98,6 +99,8 @@ export default function Reward() {
         onRedeem={redeemReward}
         onEdit={(reward) => setEditingReward(reward)}
         onDelete={handleDelete}
+        onRestock={restockReward}
+        onReduceStock={reduceStockReward}
       />
 
       {redemptions.length > 0 && (
@@ -112,7 +115,9 @@ export default function Reward() {
                 key={r.id}
                 className="flex items-center justify-between px-3 py-2 bg-white/70 rounded-lg text-xs text-slate-500"
               >
-                <span className="font-semibold truncate">{r.reward_title}</span>
+                <span className="font-semibold truncate">
+                  {r.reward_title}
+                </span>
                 <span className="flex items-center gap-2 shrink-0">
                   <span className="font-bold text-amber-500">
                     -{r.required_points}pt

@@ -19,7 +19,6 @@ interface RewardFormProps {
           title: string;
           description: string | null;
           requiredPoints: number;
-          remainingQuantity: number | null;
           imageUrl?: string | null;
         },
   ) => Promise<{ error: string | null }>;
@@ -53,8 +52,6 @@ export const RewardForm = ({
       setTitle(editingReward.title);
       setDescription(editingReward.description ?? "");
       setRequiredPoints(editingReward.required_points);
-      setIsUnlimited(editingReward.total_quantity === null);
-      setTotalQuantity(editingReward.total_quantity ?? 1);
       setImageUrl(editingReward.image_url ?? "");
     }
   }, [editingReward]);
@@ -88,29 +85,26 @@ export const RewardForm = ({
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    const quantity = isUnlimited
-      ? null
-      : totalQuantity === ""
-        ? 0
-        : totalQuantity;
-
-    // 新規作成時は total_quantity(=在庫の総数) を指定する。
-    // 編集時は「残り個数」を直接調整するものとして remaining_quantity を更新する
-    // （total_quantity は最初に決めた総数の記録として編集では変更しない）。
+    // 新規作成時のみ total_quantity(=在庫の総数) を指定する。
+    // 編集時は在庫数を扱わない（在庫の増減は一覧の「在庫を調整」から行う）ため、
+    // タイトルや必要ポイントなど在庫以外の項目のみを更新する。
     const { error } = await onSubmit(
       isEditing
         ? {
             title: title.trim(),
             description: description.trim() || null,
             requiredPoints: requiredPoints === "" ? 0 : requiredPoints,
-            remainingQuantity: quantity,
             imageUrl: imageUrl.trim() || null,
           }
         : {
             title: title.trim(),
             description: description.trim() || null,
             requiredPoints: requiredPoints === "" ? 0 : requiredPoints,
-            totalQuantity: quantity,
+            totalQuantity: isUnlimited
+              ? null
+              : totalQuantity === ""
+                ? 0
+                : totalQuantity,
             imageUrl: imageUrl.trim() || null,
           },
     );
@@ -225,51 +219,66 @@ export const RewardForm = ({
           />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-xs text-amber-700 font-medium">在庫</label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic();
-                setIsUnlimited(true);
-              }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
-                isUnlimited
-                  ? "bg-amber-400 text-white border-transparent"
-                  : "bg-white text-amber-600 border-amber-300"
-              }`}
-            >
-              無制限
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic();
-                setIsUnlimited(false);
-              }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
-                !isUnlimited
-                  ? "bg-amber-400 text-white border-transparent"
-                  : "bg-white text-amber-600 border-amber-300"
-              }`}
-            >
-              個数を指定
-            </button>
-            {!isUnlimited && (
-              <input
-                type="number"
-                min={0}
-                value={totalQuantity}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTotalQuantity(val === "" ? "" : Number(val));
-                }}
-                className="w-20 border border-amber-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-              />
-            )}
+        {isEditing ? (
+          <div className="flex flex-col gap-1 bg-amber-50 rounded-lg px-3 py-2">
+            <span className="text-xs text-amber-700 font-medium">在庫</span>
+            <span className="text-xs text-amber-600">
+              現在の在庫：
+              {editingReward?.remaining_quantity === null
+                ? "無制限"
+                : `${editingReward?.remaining_quantity} / ${editingReward?.total_quantity ?? "?"}個`}
+            </span>
+            <span className="text-[11px] text-amber-500">
+              在庫の補充・変更は一覧の「在庫を調整」ボタンから行えます
+            </span>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-amber-700 font-medium">在庫</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setIsUnlimited(true);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+                  isUnlimited
+                    ? "bg-amber-400 text-white border-transparent"
+                    : "bg-white text-amber-600 border-amber-300"
+                }`}
+              >
+                無制限
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setIsUnlimited(false);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+                  !isUnlimited
+                    ? "bg-amber-400 text-white border-transparent"
+                    : "bg-white text-amber-600 border-amber-300"
+                }`}
+              >
+                個数を指定
+              </button>
+              {!isUnlimited && (
+                <input
+                  type="number"
+                  min={0}
+                  value={totalQuantity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTotalQuantity(val === "" ? "" : Number(val));
+                  }}
+                  className="w-20 border border-amber-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
 

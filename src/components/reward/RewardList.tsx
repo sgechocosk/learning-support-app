@@ -9,6 +9,8 @@ interface RewardListProps {
   onRedeem: (rewardId: string) => Promise<{ error: string | null }>;
   onEdit: (reward: Reward) => void;
   onDelete: (rewardId: string) => void;
+  onRestock: (rewardId: string, amount: number) => Promise<{ error: string | null }>;
+  onReduceStock: (rewardId: string, amount: number) => Promise<{ error: string | null }>;
 }
 
 export const RewardList = ({
@@ -19,6 +21,8 @@ export const RewardList = ({
   onRedeem,
   onEdit,
   onDelete,
+  onRestock,
+  onReduceStock,
 }: RewardListProps) => {
   if (isLoading) {
     return (
@@ -50,6 +54,8 @@ export const RewardList = ({
             onRedeem={onRedeem}
             onEdit={onEdit}
             onDelete={onDelete}
+            onRestock={onRestock}
+            onReduceStock={onReduceStock}
           />
         ))}
       </div>
@@ -67,6 +73,8 @@ export const RewardList = ({
           onRedeem={onRedeem}
           onEdit={onEdit}
           onDelete={onDelete}
+          onRestock={onRestock}
+          onReduceStock={onReduceStock}
         />
       ))}
     </div>

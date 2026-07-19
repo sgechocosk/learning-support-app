@@ -1,4 +1,10 @@
-import { createContext, useState, useEffect, type ReactNode } from "react";
+import {
+  createContext,
+  useState,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { Reward, RewardRedemption } from "../types";
 import { useProfile } from "../hooks/useProfile";
@@ -29,6 +35,16 @@ interface RewardContextType {
   ) => Promise<{ error: string | null }>;
   deleteReward: (rewardId: string) => Promise<{ error: string | null }>;
   redeemReward: (rewardId: string) => Promise<{ error: string | null }>;
+  // 在庫を補充する（remaining_quantity と total_quantity を同じ数だけ増やす）
+  restockReward: (
+    rewardId: string,
+    amount: number,
+  ) => Promise<{ error: string | null }>;
+  // 在庫を手動で減らす（remaining_quantity のみを減らす。total_quantity は変えない）
+  reduceStockReward: (
+    rewardId: string,
+    amount: number,
+  ) => Promise<{ error: string | null }>;
 }
 
 export const RewardContext = createContext<RewardContextType | undefined>(
@@ -40,6 +56,10 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Realtimeの複数イベントや手動更新が短時間に重なった際、
+  // 実際のfetchを1回にまとめて「ちらつき」を防ぐためのデバウンス用タイマー
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sortRewards = (list: Reward[]) => {
     return [...list].sort((a, b) => a.required_points - b.required_points);
@@ -71,6 +91,15 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   };
 
+  // Realtimeのイベントが立て続けに来ても、最後の1回だけをまとめて実行する
+  const scheduleBackgroundFetch = (delay = 350) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      debounceTimer.current = null;
+      fetchRewards(true);
+    }, delay);
+  };
+
   useEffect(() => {
     fetchRewards();
 
@@ -86,7 +115,7 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
           table: "rewards",
           filter: `pair_id=eq.${pairId}`,
         },
-        () => fetchRewards(true),
+        () => scheduleBackgroundFetch(),
       )
       .on(
         "postgres_changes",
@@ -96,12 +125,13 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
           table: "reward_redemptions",
           filter: `pair_id=eq.${pairId}`,
         },
-        () => fetchRewards(true),
+        () => scheduleBackgroundFetch(),
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, [pairId]);
 
@@ -161,14 +191,120 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const redeemReward = async (rewardId: string) => {
+    const target = rewards.find((r) => r.id === rewardId);
+
     const { error } = await supabase.rpc("redeem_reward", {
       reward_id: rewardId,
     });
-    if (!error) {
-      await fetchRewards(true);
-      await refreshProfile(); // ポイント残高を即時反映
+
+    if (error) return { error: error.message };
+
+    // --- 楽観的更新 ---
+    // サーバーの結果を待って再取得すると、Realtimeイベントとの競合で
+    // 画面がちらつくため、成功が確定した時点でローカルの状態を即座に書き換える。
+    // その後のRealtime由来の再取得(scheduleBackgroundFetch)はデバウンスされるため
+    // ほぼ同じ内容で1回上書きされるだけになり、見た目の変化は起きない。
+    if (target) {
+      setRewards((prev) =>
+        prev.map((r) =>
+          r.id === rewardId
+            ? {
+                ...r,
+                remaining_quantity:
+                  r.remaining_quantity !== null
+                    ? Math.max(0, r.remaining_quantity - 1)
+                    : null,
+              }
+            : r,
+        ),
+      );
+      setRedemptions((prev) => [
+        {
+          id: `optimistic-${Date.now()}`,
+          pair_id: target.pair_id,
+          reward_id: target.id,
+          learner_id: "",
+          reward_title: target.title,
+          required_points: target.required_points,
+          redeemed_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
     }
-    return { error: error?.message ?? null };
+
+    await refreshProfile(); // ポイント残高を即時反映
+    return { error: null };
+  };
+
+  const restockReward = async (rewardId: string, amount: number) => {
+    if (amount <= 0) return { error: "1個以上を指定してください" };
+    const target = rewards.find((r) => r.id === rewardId);
+    if (!target) return { error: "対象のごほうびが見つかりません" };
+    if (target.remaining_quantity === null) {
+      // 無制限設定のごほうびは補充不要
+      return { error: null };
+    }
+
+    const nextRemaining = target.remaining_quantity + amount;
+    const nextTotal = (target.total_quantity ?? target.remaining_quantity) + amount;
+
+    // 楽観的更新
+    setRewards((prev) =>
+      prev.map((r) =>
+        r.id === rewardId
+          ? { ...r, remaining_quantity: nextRemaining, total_quantity: nextTotal }
+          : r,
+      ),
+    );
+
+    const { error } = await supabase
+      .from("rewards")
+      .update({
+        remaining_quantity: nextRemaining,
+        total_quantity: nextTotal,
+      })
+      .eq("id", rewardId);
+
+    if (error) {
+      // 失敗時は再取得して整合性を戻す
+      await fetchRewards(true);
+      return { error: error.message };
+    }
+    return { error: null };
+  };
+
+  const reduceStockReward = async (rewardId: string, amount: number) => {
+    if (amount <= 0) return { error: "1個以上を指定してください" };
+    const target = rewards.find((r) => r.id === rewardId);
+    if (!target) return { error: "対象のごほうびが見つかりません" };
+    if (target.remaining_quantity === null) {
+      // 無制限設定のごほうびは対象外
+      return { error: null };
+    }
+    if (amount > target.remaining_quantity) {
+      return { error: `現在の在庫（${target.remaining_quantity}個）を超えて減らすことはできません` };
+    }
+
+    const nextRemaining = target.remaining_quantity - amount;
+
+    // 楽観的更新（total_quantity は変更しない）
+    setRewards((prev) =>
+      prev.map((r) =>
+        r.id === rewardId ? { ...r, remaining_quantity: nextRemaining } : r,
+      ),
+    );
+
+    const { error } = await supabase
+      .from("rewards")
+      .update({ remaining_quantity: nextRemaining })
+      .eq("id", rewardId);
+
+    if (error) {
+      // 失敗時は再取得して整合性を戻す
+      await fetchRewards(true);
+      return { error: error.message };
+    }
+    return { error: null };
   };
 
   return (
@@ -182,6 +318,8 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
         updateReward,
         deleteReward,
         redeemReward,
+        restockReward,
+        reduceStockReward,
       }}
     >
       {children}

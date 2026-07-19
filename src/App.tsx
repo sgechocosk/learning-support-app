@@ -20,6 +20,7 @@ import Reward from "./pages/Reward";
 import { ProfileProvider } from "./contexts/ProfileContext";
 import { CategoryProvider } from "./contexts/CategoryContext";
 import { TaskProvider } from "./contexts/TaskContext";
+import { RewardProvider } from "./contexts/RewardContext";
 
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
@@ -115,6 +116,7 @@ export default function App() {
     <ProfileProvider>
       <CategoryProvider>
         <TaskProvider>
+        <RewardProvider>
           <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
             <style>{`
           :root {
@@ -166,6 +168,7 @@ export default function App() {
               onClose={closeOverlay}
             />
           </div>
+        </RewardProvider>
         </TaskProvider>
       </CategoryProvider>
     </ProfileProvider>

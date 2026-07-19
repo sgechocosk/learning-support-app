@@ -246,13 +246,18 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const nextRemaining = target.remaining_quantity + amount;
-    const nextTotal = (target.total_quantity ?? target.remaining_quantity) + amount;
+    const nextTotal =
+      (target.total_quantity ?? target.remaining_quantity) + amount;
 
     // 楽観的更新
     setRewards((prev) =>
       prev.map((r) =>
         r.id === rewardId
-          ? { ...r, remaining_quantity: nextRemaining, total_quantity: nextTotal }
+          ? {
+              ...r,
+              remaining_quantity: nextRemaining,
+              total_quantity: nextTotal,
+            }
           : r,
       ),
     );
@@ -282,7 +287,9 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     }
     if (amount > target.remaining_quantity) {
-      return { error: `現在の在庫（${target.remaining_quantity}個）を超えて減らすことはできません` };
+      return {
+        error: `現在の在庫（${target.remaining_quantity}個）を超えて減らすことはできません`,
+      };
     }
 
     const nextRemaining = target.remaining_quantity - amount;

@@ -20,8 +20,14 @@ interface RewardItemProps {
   onRedeem: (rewardId: string) => Promise<{ error: string | null }>;
   onEdit: (reward: Reward) => void;
   onDelete: (rewardId: string) => void;
-  onRestock: (rewardId: string, amount: number) => Promise<{ error: string | null }>;
-  onReduceStock: (rewardId: string, amount: number) => Promise<{ error: string | null }>;
+  onRestock: (
+    rewardId: string,
+    amount: number,
+  ) => Promise<{ error: string | null }>;
+  onReduceStock: (
+    rewardId: string,
+    amount: number,
+  ) => Promise<{ error: string | null }>;
 }
 
 export const RewardItem = ({
@@ -62,7 +68,8 @@ export const RewardItem = ({
     reward.remaining_quantity > 0 &&
     reward.remaining_quantity <= 3;
   const canAfford = currentPoints >= reward.required_points;
-  const canRedeem = !isSupporter && !isOutOfStock && canAfford && reward.is_active;
+  const canRedeem =
+    !isSupporter && !isOutOfStock && canAfford && reward.is_active;
 
   const handleRedeemConfirm = async () => {
     triggerHaptic();
@@ -117,7 +124,9 @@ export const RewardItem = ({
     return (
       <div
         className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl border-2 border-amber-100 shadow-sm transition-all ${
-          reward.is_active ? "bg-white" : "opacity-60 grayscale-[0.2] bg-slate-50"
+          reward.is_active
+            ? "bg-white"
+            : "opacity-60 grayscale-[0.2] bg-slate-50"
         }`}
       >
         {thumbnail}
@@ -240,7 +249,11 @@ export const RewardItem = ({
                 <input
                   type="number"
                   min={1}
-                  max={adjustMode === "remove" ? reward.remaining_quantity ?? undefined : undefined}
+                  max={
+                    adjustMode === "remove"
+                      ? (reward.remaining_quantity ?? undefined)
+                      : undefined
+                  }
                   autoFocus
                   value={adjustAmount}
                   onChange={(e) => {

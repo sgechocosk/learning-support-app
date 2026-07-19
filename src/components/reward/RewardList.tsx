@@ -9,8 +9,14 @@ interface RewardListProps {
   onRedeem: (rewardId: string) => Promise<{ error: string | null }>;
   onEdit: (reward: Reward) => void;
   onDelete: (rewardId: string) => void;
-  onRestock: (rewardId: string, amount: number) => Promise<{ error: string | null }>;
-  onReduceStock: (rewardId: string, amount: number) => Promise<{ error: string | null }>;
+  onRestock: (
+    rewardId: string,
+    amount: number,
+  ) => Promise<{ error: string | null }>;
+  onReduceStock: (
+    rewardId: string,
+    amount: number,
+  ) => Promise<{ error: string | null }>;
 }
 
 export const RewardList = ({

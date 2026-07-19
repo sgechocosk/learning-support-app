@@ -116,9 +116,9 @@ export default function App() {
     <ProfileProvider>
       <CategoryProvider>
         <TaskProvider>
-        <RewardProvider>
-          <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-            <style>{`
+          <RewardProvider>
+            <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+              <style>{`
           :root {
             --click-x: ${clickPos.x}px;
             --click-y: ${clickPos.y}px;
@@ -133,42 +133,42 @@ export default function App() {
           .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
         `}</style>
 
-            <Header onOpenOverlay={openOverlay} />
+              <Header onOpenOverlay={openOverlay} />
 
-            <div className="flex-1 overflow-hidden relative bg-gray-50">
-              <TabContent
-                ref={scrollContainerRef}
+              <div className="flex-1 overflow-hidden relative bg-gray-50">
+                <TabContent
+                  ref={scrollContainerRef}
+                  activeTab={activeTab}
+                  slideDirection={slideDirection}
+                >
+                  {activeTab === 0 && (
+                    <Home
+                      currentTabInfo={TABS[activeTab]}
+                      message={message}
+                      onMainActionClick={handleMainActionClick}
+                    />
+                  )}
+                  {activeTab === 1 && <Calendar />}
+                  {activeTab === 2 && <Task />}
+                  {activeTab === 3 && <Timer />}
+                  {activeTab === 4 && <Reward />}
+                </TabContent>
+              </div>
+
+              <Footer
                 activeTab={activeTab}
-                slideDirection={slideDirection}
-              >
-                {activeTab === 0 && (
-                  <Home
-                    currentTabInfo={TABS[activeTab]}
-                    message={message}
-                    onMainActionClick={handleMainActionClick}
-                  />
-                )}
-                {activeTab === 1 && <Calendar />}
-                {activeTab === 2 && <Task />}
-                {activeTab === 3 && <Timer />}
-                {activeTab === 4 && <Reward />}
-              </TabContent>
+                isMoving={isMoving}
+                onTabChange={handleTabChange}
+              />
+
+              <Overlay
+                type={overlayType}
+                isClosing={isOverlayClosing}
+                lastSignInAt={lastSignInAt}
+                onClose={closeOverlay}
+              />
             </div>
-
-            <Footer
-              activeTab={activeTab}
-              isMoving={isMoving}
-              onTabChange={handleTabChange}
-            />
-
-            <Overlay
-              type={overlayType}
-              isClosing={isOverlayClosing}
-              lastSignInAt={lastSignInAt}
-              onClose={closeOverlay}
-            />
-          </div>
-        </RewardProvider>
+          </RewardProvider>
         </TaskProvider>
       </CategoryProvider>
     </ProfileProvider>

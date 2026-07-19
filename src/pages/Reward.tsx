@@ -115,9 +115,7 @@ export default function Reward() {
                 key={r.id}
                 className="flex items-center justify-between px-3 py-2 bg-white/70 rounded-lg text-xs text-slate-500"
               >
-                <span className="font-semibold truncate">
-                  {r.reward_title}
-                </span>
+                <span className="font-semibold truncate">{r.reward_title}</span>
                 <span className="flex items-center gap-2 shrink-0">
                   <span className="font-bold text-amber-500">
                     -{r.required_points}pt

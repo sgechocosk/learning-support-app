@@ -28,6 +28,30 @@ export interface Category {
   created_at: string;
 }
 
+export interface Reward {
+  id: string;
+  pair_id: string;
+  title: string;
+  description: string | null;
+  required_points: number;
+  total_quantity: number | null; // null = 在庫無制限
+  remaining_quantity: number | null; // null = 在庫無制限
+  image_url: string | null;
+  is_active: boolean;
+  sort_order: number; // 支援者が並び替えた表示順（昇順）
+  created_at: string;
+}
+
+export interface RewardRedemption {
+  id: string;
+  pair_id: string;
+  reward_id: string | null;
+  learner_id: string;
+  reward_title: string;
+  required_points: number;
+  redeemed_at: string;
+}
+
 export interface Task {
   id: string;
   pair_id: string;

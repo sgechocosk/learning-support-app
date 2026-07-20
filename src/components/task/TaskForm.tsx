@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Coins } from "lucide-react";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
@@ -285,19 +285,42 @@ export const TaskForm = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-sky-600 font-medium">タスク名</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="例: 漢字プリント1枚"
-            className="border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
-          />
-        </div>
+        {/* タスク名 */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="タスク名"
+          className="border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+        />
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-sky-600 font-medium">ポイント</label>
+        {/* 予定日（日付入力用のプレースホルダーハック） */}
+        <input
+          type="date"
+          value={scheduledAt}
+          onChange={(e) => setScheduledAt(e.target.value)}
+          className={`border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 ${!scheduledAt ? 'text-slate-400' : 'text-slate-900'}`}
+          // 未入力時に「予定日（任意）」と表示させるための疑似プレースホルダー
+          data-placeholder="予定日（任意）"
+          style={{
+             // input[type="date"]が空の時にdata-placeholderの文字を出すCSS小技
+             // (※ブラウザ依存があるため、Tailwindのみで完全対応は難しいですが、実用範囲です)
+          }}
+        />
+        <style dangerouslySetInnerHTML={{__html: `
+          input[type="date"]:empty::before {
+            content: attr(data-placeholder);
+            color: #94a3b8; /* text-slate-400 */
+          }
+          input[type="date"]:focus::before,
+          input[type="date"]:valid::before {
+            content: "";
+          }
+        `}} />
+
+        {/* ポイント（RewardFormに似た横並びレイアウト） */}
+        <div className="flex items-center gap-2">
+          <Coins className="text-sky-400 shrink-0" size={20} />
           <input
             type="number"
             min={0}
@@ -306,20 +329,10 @@ export const TaskForm = ({
               const val = e.target.value;
               setRewardPoints(val === "" ? "" : Number(val));
             }}
-            className="border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+            placeholder="獲得ポイント"
+            className="w-28 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
           />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-sky-600 font-medium">
-            予定日（任意）
-          </label>
-          <input
-            type="date"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
-          />
+          <span className="text-sm font-bold text-sky-600">ポイント</span>
         </div>
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}

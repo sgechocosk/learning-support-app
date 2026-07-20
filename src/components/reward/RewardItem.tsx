@@ -1,7 +1,17 @@
 import { useState } from "react";
-import { Pencil, Trash2, Gift, PackageX, Sparkles, Coins } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Gift,
+  PackageX,
+  Sparkles,
+  Coins,
+  Share2,
+} from "lucide-react";
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
+import { useProfile } from "../../hooks/useProfile";
+import { shareRedemptionImage } from "../../lib/shareRedemption";
 
 interface RewardItemProps {
   reward: Reward;
@@ -21,10 +31,15 @@ export const RewardItem = ({
   onDelete,
 }: RewardItemProps) => {
   const triggerHaptic = useHaptic();
+  const { profile, partnerName } = useProfile();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [justRedeemed, setJustRedeemed] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // ごほうび交換後、支援者への共有を確認するためのモーダル状態
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const isOutOfStock =
     reward.remaining_quantity !== null && reward.remaining_quantity <= 0;
@@ -49,6 +64,32 @@ export const RewardItem = ({
     }
     setJustRedeemed(true);
     setTimeout(() => setJustRedeemed(false), 1800);
+    // 交換成功後、支援者への共有を尋ねる
+    setShowSharePrompt(true);
+  };
+
+  const handleShare = async () => {
+    triggerHaptic();
+    setIsSharing(true);
+    setShareNotice(null);
+    const result = await shareRedemptionImage({
+      learnerName: profile?.name ?? "学習者",
+      rewardTitle: reward.title,
+      requiredPoints: reward.required_points,
+      imageUrl: reward.image_url,
+    });
+    setIsSharing(false);
+
+    if (result.status === "error") {
+      setShareNotice(result.error ?? "共有に失敗しました");
+      return;
+    }
+    if (result.status === "downloaded") {
+      setShareNotice("画像を保存しました。写真アプリなどから支援者に送ってね");
+      return;
+    }
+    // "shared" または "cancelled" の場合はそのままモーダルを閉じる
+    setShowSharePrompt(false);
   };
 
   const thumbnail = (
@@ -69,30 +110,34 @@ export const RewardItem = ({
     return (
       <div
         className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl border-2 border-amber-100 shadow-sm transition-all ${
-          reward.is_active
-            ? "bg-white"
-            : "opacity-60 grayscale-[0.2] bg-slate-50"
+          reward.is_active ? "bg-white" : "bg-slate-50"
         }`}
       >
-        {thumbnail}
+        <div
+          className={`contents ${
+            reward.is_active ? "" : "opacity-60 grayscale-[0.2]"
+          }`}
+        >
+          {thumbnail}
 
-        <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-white bg-amber-400 shadow-sm shrink-0">
-          <Coins size={10} />
-          {reward.required_points}pt
-        </span>
-
-        <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-slate-500 bg-slate-100 shrink-0">
-          在庫:{" "}
-          {reward.remaining_quantity === null
-            ? "無制限"
-            : `${reward.remaining_quantity} / ${reward.total_quantity ?? "?"}個`}
-        </span>
-
-        {!reward.is_active && (
-          <span className="text-[10px] font-black text-slate-400 shrink-0">
-            非公開
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-white bg-amber-400 shadow-sm shrink-0">
+            <Coins size={10} />
+            {reward.required_points}pt
           </span>
-        )}
+
+          <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-slate-500 bg-slate-100 shrink-0">
+            在庫:{" "}
+            {reward.remaining_quantity === null
+              ? "無制限"
+              : `${reward.remaining_quantity} / ${reward.total_quantity ?? "?"}個`}
+          </span>
+
+          {!reward.is_active && (
+            <span className="text-[10px] font-black text-slate-400 shrink-0">
+              非公開
+            </span>
+          )}
+        </div>
 
         <div className="flex gap-1 shrink-0 ml-auto">
           <button
@@ -115,14 +160,20 @@ export const RewardItem = ({
           </button>
         </div>
 
-        <p className="w-full basis-full font-bold text-base break-words text-slate-700">
-          {reward.title}
-        </p>
-        {reward.description && (
-          <p className="w-full basis-full text-sm text-slate-400 break-words">
-            {reward.description}
+        <div
+          className={`contents ${
+            reward.is_active ? "" : "opacity-60 grayscale-[0.2]"
+          }`}
+        >
+          <p className="w-full basis-full font-bold text-base break-words text-slate-700">
+            {reward.title}
           </p>
-        )}
+          {reward.description && (
+            <p className="w-full basis-full text-sm text-slate-400 break-words">
+              {reward.description}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -260,6 +311,56 @@ export const RewardItem = ({
                 className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
               >
                 キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSharePrompt && (
+        <div
+          onClick={() => {
+            if (isSharing) return;
+            triggerHaptic();
+            setShowSharePrompt(false);
+            setShareNotice(null);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
+          >
+            <Share2 className="w-10 h-10 text-sky-400" />
+            <h4 className="font-black text-slate-800">
+              交換したことを{partnerName ?? "支援者"}さんに共有する？
+            </h4>
+            <p className="text-sm text-slate-500">
+              「{reward.title}
+              」と交換したことをLINEなどで送れます
+            </p>
+            {shareNotice && (
+              <p className="text-xs text-slate-500">{shareNotice}</p>
+            )}
+            <div className="flex gap-2 w-full mt-1">
+              <button
+                onClick={handleShare}
+                disabled={isSharing}
+                className="flex-1 py-2 text-sm font-bold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors disabled:opacity-50"
+              >
+                {isSharing ? "作成中..." : "共有する"}
+              </button>
+              <button
+                onClick={() => {
+                  triggerHaptic();
+                  setShowSharePrompt(false);
+                  setShareNotice(null);
+                }}
+                disabled={isSharing}
+                className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                しない
               </button>
             </div>
           </div>

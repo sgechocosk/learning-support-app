@@ -149,7 +149,7 @@ export const TaskItem = ({
           <span className="truncate max-w-[64px]">{categoryName}</span>
         </span>
 
-        <span className="flex items-center shrink-0 text-sky-500 text-xs font-black ml-auto">
+        <span className="flex items-center shrink-0 text-sky-500 text-sm font-black ml-auto">
           +{task.reward_points}pt
         </span>
 
@@ -162,7 +162,7 @@ export const TaskItem = ({
               }}
               className="p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors"
             >
-              <Pencil size={14} />
+              <Pencil size={24} />
             </button>
             <button
               onClick={() => {
@@ -171,7 +171,7 @@ export const TaskItem = ({
               }}
               className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
             >
-              <Trash2 size={14} />
+              <Trash2 size={24} />
             </button>
           </div>
         )}
@@ -183,7 +183,7 @@ export const TaskItem = ({
         )}
 
         <p
-          className={`w-full basis-full font-bold text-sm break-words ${
+          className={`w-full basis-full font-bold text-base break-words ${
             task.is_completed ? "line-through text-slate-400" : "text-slate-700"
           }`}
         >

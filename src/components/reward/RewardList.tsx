@@ -11,7 +11,6 @@ interface RewardListProps {
   onRedeem: (rewardId: string) => Promise<{ error: string | null }>;
   onEdit: (reward: Reward) => void;
   onDelete: (rewardId: string) => void;
-  // 支援者がドラッグ&ドロップで並び替えたときに呼ばれる
   onReorder?: (draggedId: string, targetId: string) => void;
 }
 
@@ -25,7 +24,6 @@ export const RewardList = ({
   onDelete,
   onReorder,
 }: RewardListProps) => {
-  // ドラッグ中のごほうびIDと、現在ドラッグが重なっているごほうびID
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -54,15 +52,17 @@ export const RewardList = ({
           <div
             key={reward.id}
             onDragOver={(e) => {
-              if (!draggedId || draggedId === reward.id) return;
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
-              setDragOverId(reward.id);
+              if (dragOverId !== reward.id) {
+                setDragOverId(reward.id);
+              }
             }}
             onDrop={(e) => {
               e.preventDefault();
-              if (draggedId && draggedId !== reward.id && onReorder) {
-                onReorder(draggedId, reward.id);
+              const droppedId = e.dataTransfer.getData("text/plain");
+              if (droppedId && droppedId !== reward.id && onReorder) {
+                onReorder(droppedId, reward.id);
               }
               setDraggedId(null);
               setDragOverId(null);
@@ -81,7 +81,7 @@ export const RewardList = ({
             }`}
           >
             <span
-              draggable
+              draggable={true}
               onDragStart={(e) => {
                 setDraggedId(reward.id);
                 e.dataTransfer.effectAllowed = "move";

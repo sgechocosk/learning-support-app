@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Pencil,
-  Trash2,
-  Gift,
-  PackageX,
-  Sparkles,
-  Coins,
-} from "lucide-react";
+import { Pencil, Trash2, Gift, PackageX, Sparkles, Coins } from "lucide-react";
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 
@@ -109,7 +102,7 @@ export const RewardItem = ({
             }}
             className="p-1.5 rounded-full bg-slate-100 text-amber-500 transition-colors"
           >
-            <Pencil size={14} />
+            <Pencil size={24} />
           </button>
           <button
             onClick={() => {
@@ -118,15 +111,15 @@ export const RewardItem = ({
             }}
             className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
           >
-            <Trash2 size={14} />
+            <Trash2 size={24} />
           </button>
         </div>
 
-        <p className="w-full basis-full font-bold text-sm break-words text-slate-700">
+        <p className="w-full basis-full font-bold text-base break-words text-slate-700">
           {reward.title}
         </p>
         {reward.description && (
-          <p className="w-full basis-full text-xs text-slate-400 break-words">
+          <p className="w-full basis-full text-sm text-slate-400 break-words">
             {reward.description}
           </p>
         )}
@@ -135,101 +128,110 @@ export const RewardItem = ({
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={canRedeem ? 0 : -1}
-      aria-disabled={!canRedeem}
-      onClick={() => {
-        if (!canRedeem) return;
-        triggerHaptic();
-        setIsConfirming(true);
-      }}
-      onKeyDown={(e) => {
-        if (!canRedeem) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
+    <>
+      <div
+        role="button"
+        tabIndex={canRedeem ? 0 : -1}
+        aria-disabled={!canRedeem}
+        onClick={() => {
+          if (!canRedeem) return;
           triggerHaptic();
           setIsConfirming(true);
-        }
-      }}
-      className={`relative flex flex-col rounded-2xl border-2 shadow-sm overflow-hidden transition-all ${
-        isOutOfStock
-          ? "border-slate-100 bg-slate-50 opacity-70"
-          : "border-amber-100 bg-white"
-      } ${
-        canRedeem
-          ? "cursor-pointer hover:shadow-md active:scale-[0.98]"
-          : "cursor-default"
-      }`}
-    >
-      <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-sky-50 flex items-center justify-center">
-        {reward.image_url ? (
-          <img
-            src={reward.image_url}
-            alt={reward.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Gift className="w-12 h-12 text-amber-300" />
-        )}
+        }}
+        onKeyDown={(e) => {
+          if (!canRedeem) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            triggerHaptic();
+            setIsConfirming(true);
+          }
+        }}
+        className={`relative flex flex-col rounded-2xl border-2 shadow-sm overflow-hidden transition-all ${
+          isOutOfStock
+            ? "border-slate-100 bg-slate-50 opacity-70"
+            : "border-amber-100 bg-white"
+        } ${
+          canRedeem
+            ? "cursor-pointer hover:shadow-md active:scale-[0.98]"
+            : "cursor-default"
+        }`}
+      >
+        <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-sky-50 flex items-center justify-center">
+          {reward.image_url ? (
+            <img
+              src={reward.image_url}
+              alt={reward.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Gift className="w-12 h-12 text-amber-300" />
+          )}
 
-        {isLowStock && !isOutOfStock && (
-          <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">
-            残り{reward.remaining_quantity}個！
-          </span>
-        )}
-        {isOutOfStock && (
-          <span className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
-            <span className="flex items-center gap-1 bg-white text-slate-600 text-xs font-black px-3 py-1.5 rounded-full">
-              <PackageX size={14} />
-              在庫切れ
-            </span>
-          </span>
-        )}
-
-        {justRedeemed && (
-          <span className="absolute inset-0 bg-amber-400/90 flex flex-col items-center justify-center gap-1 animate-[pop_0.3s_ease-out]">
-            <Sparkles className="w-8 h-8 text-white" />
-            <span className="text-white font-black text-sm">GET!</span>
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1.5 p-3 flex-1">
-        <p className="font-black text-sm text-slate-700 leading-snug break-words line-clamp-2">
-          {reward.title}
-        </p>
-        {reward.description && (
-          <p className="text-[11px] text-slate-400 break-words line-clamp-2">
-            {reward.description}
-          </p>
-        )}
-
-        <div className="mt-auto flex items-center justify-end gap-1.5 pt-1">
-          {!isOutOfStock && !canAfford && (
-            <span className="text-[10px] font-bold text-slate-300">
-              ポイント不足
+          {isLowStock && !isOutOfStock && (
+            <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">
+              残り{reward.remaining_quantity}個！
             </span>
           )}
-          <span
-            className={`flex items-center gap-0.5 font-black ${
-              canAfford ? "text-amber-500" : "text-slate-300"
-            }`}
-          >
-            <Coins size={14} />
-            <span className="text-lg">{reward.required_points}</span>
-            <span className="text-[10px] font-bold opacity-70">pt</span>
-          </span>
+          {isOutOfStock && (
+            <span className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+              <span className="flex items-center gap-1 bg-white text-slate-600 text-xs font-black px-3 py-1.5 rounded-full">
+                <PackageX size={14} />
+                在庫切れ
+              </span>
+            </span>
+          )}
+
+          {justRedeemed && (
+            <span className="absolute inset-0 bg-amber-400/90 flex flex-col items-center justify-center gap-1 animate-[pop_0.3s_ease-out]">
+              <Sparkles className="w-8 h-8 text-white" />
+              <span className="text-white font-black text-sm">GET!</span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5 p-3 flex-1">
+          <p className="font-black text-sm text-slate-700 leading-snug break-words line-clamp-2">
+            {reward.title}
+          </p>
+          {reward.description && (
+            <p className="text-[11px] text-slate-400 break-words line-clamp-2">
+              {reward.description}
+            </p>
+          )}
+
+          <div className="mt-auto flex items-center justify-end gap-1.5 pt-1">
+            {!isOutOfStock && !canAfford && (
+              <span className="text-[10px] font-bold text-slate-300">
+                ポイント不足
+              </span>
+            )}
+            <span
+              className={`flex items-center gap-0.5 font-black ${
+                canAfford ? "text-amber-500" : "text-slate-300"
+              }`}
+            >
+              <Coins size={14} />
+              <span className="text-lg">{reward.required_points}</span>
+              <span className="text-[10px] font-bold opacity-70">pt</span>
+            </span>
+          </div>
         </div>
       </div>
 
       {isConfirming && (
         <div
-          onClick={(e) => e.stopPropagation()}
+          onClick={() => {
+            triggerHaptic();
+            setIsConfirming(false);
+            setErrorMsg(null);
+          }}
           onKeyDown={(e) => e.stopPropagation()}
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
         >
-          <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
+          >
             <Gift className="w-10 h-10 text-amber-400" />
             <h4 className="font-black text-slate-800">
               「{reward.title}」と交換しますか？
@@ -263,6 +265,6 @@ export const RewardItem = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

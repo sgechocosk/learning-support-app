@@ -184,14 +184,14 @@ export const RewardForm = ({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="ごほうび名（例: 30分ゲームチケット）"
+          placeholder="ごほうび名"
           className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
         />
 
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="説明（任意・例: 好きなゲームを30分プレイできます）"
+          placeholder="説明（任意）"
           rows={2}
           className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
         />
@@ -200,7 +200,7 @@ export const RewardForm = ({
           type="text"
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="画像URL（任意）https://..."
+          placeholder="画像URL（任意）"
           className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
         />
 

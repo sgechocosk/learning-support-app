@@ -19,8 +19,7 @@ export default function Reward() {
     updateReward,
     deleteReward,
     redeemReward,
-    restockReward,
-    reduceStockReward,
+    reorderRewards,
   } = useReward();
 
   const [showForm, setShowForm] = useState(false);
@@ -31,27 +30,37 @@ export default function Reward() {
 
   const isSupporter = profile?.role === "supporter";
 
-  const handleSubmit = (
-    input:
-      | {
-          title: string;
-          description: string | null;
-          requiredPoints: number;
-          totalQuantity: number | null;
-          imageUrl?: string | null;
-        }
-      | {
-          title: string;
-          description: string | null;
-          requiredPoints: number;
-          imageUrl?: string | null;
-        },
-  ) => {
+  const handleSubmit = (input: {
+    title: string;
+    description: string | null;
+    requiredPoints: number;
+    totalQuantity?: number | null;
+    remainingQuantity?: number | null;
+    imageUrl?: string | null;
+    isActive?: boolean;
+  }) => {
+    // 最大数・現在の在庫・表示/非表示は RewardForm 側で確定済みの値が渡される
     if (editingReward) {
       return updateReward(editingReward.id, input);
     }
-    // 新規作成時は RewardForm 側で必ず totalQuantity 付きの分岐が渡される
-    return createReward(input as Parameters<typeof createReward>[0]);
+    // 新規作成時は RewardForm 側で必ず totalQuantity が渡される
+    return createReward(
+      input as { totalQuantity: number | null } & typeof input,
+    );
+  };
+
+  // ドラッグしたごほうびを、ドロップ先のごほうびの位置へ移動する
+  const handleReorder = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    const currentIds = rewards.map((r) => r.id);
+    const fromIndex = currentIds.indexOf(draggedId);
+    const toIndex = currentIds.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const nextIds = [...currentIds];
+    nextIds.splice(fromIndex, 1);
+    nextIds.splice(toIndex, 0, draggedId);
+    reorderRewards(nextIds);
   };
 
   const handleDelete = async (rewardId: string) => {
@@ -83,6 +92,9 @@ export default function Reward() {
 
       {isSupporter && (
         <RewardForm
+          // editingReward が変わるたびに（新規↔編集の切り替えを含め）確実に作り直し、
+          // 前のごほうびの状態が一瞬だけ残る「ちらつき」を防ぐ
+          key={editingReward ? `edit-${editingReward.id}` : "create"}
           isOpen={showForm}
           onToggle={() => setShowForm((v) => !v)}
           onSubmit={handleSubmit}
@@ -99,8 +111,7 @@ export default function Reward() {
         onRedeem={redeemReward}
         onEdit={(reward) => setEditingReward(reward)}
         onDelete={handleDelete}
-        onRestock={restockReward}
-        onReduceStock={reduceStockReward}
+        onReorder={handleReorder}
       />
 
       {redemptions.length > 0 && (

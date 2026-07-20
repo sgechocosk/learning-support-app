@@ -45,6 +45,9 @@ interface RewardContextType {
     rewardId: string,
     amount: number,
   ) => Promise<{ error: string | null }>;
+  // 支援者がドラッグ&ドロップで並び替えた順序を保存する
+  // orderedIds は並び替え後の全件分の reward.id を順番通りに並べた配列
+  reorderRewards: (orderedIds: string[]) => Promise<{ error: string | null }>;
 }
 
 export const RewardContext = createContext<RewardContextType | undefined>(
@@ -62,7 +65,14 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sortRewards = (list: Reward[]) => {
-    return [...list].sort((a, b) => a.required_points - b.required_points);
+    return [...list].sort((a, b) => {
+      const diff = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      if (diff !== 0) return diff;
+      // sort_order が同値（未設定データなど）の場合は作成日時の昇順にフォールバック
+      return (
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    });
   };
 
   const fetchRewards = async (isBackground = false) => {
@@ -143,6 +153,11 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
     imageUrl = null,
   }) => {
     if (!pairId) return { error: "pair not found" };
+    // 新規作成は常に一覧の末尾に追加する
+    const nextSortOrder =
+      rewards.length === 0
+        ? 0
+        : Math.max(...rewards.map((r) => r.sort_order ?? 0)) + 1;
     const { error } = await supabase.from("rewards").insert({
       pair_id: pairId,
       title,
@@ -151,6 +166,7 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
       total_quantity: totalQuantity,
       remaining_quantity: totalQuantity, // 作成時は在庫=総数からスタート
       image_url: imageUrl,
+      sort_order: nextSortOrder,
     });
     if (!error) await fetchRewards(true);
     return { error: error?.message ?? null };
@@ -314,6 +330,36 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
     return { error: null };
   };
 
+  // 支援者がドラッグ&ドロップで並び替えた順序を保存する
+  const reorderRewards = async (orderedIds: string[]) => {
+    const prevRewards = rewards;
+    const orderIndex = new Map(orderedIds.map((id, index) => [id, index]));
+
+    // 楽観的更新（並び替え結果を即座に画面へ反映）
+    const nextRewards = rewards
+      .map((r) =>
+        orderIndex.has(r.id)
+          ? { ...r, sort_order: orderIndex.get(r.id) as number }
+          : r,
+      )
+      .sort((a, b) => a.sort_order - b.sort_order);
+    setRewards(nextRewards);
+
+    const results = await Promise.all(
+      orderedIds.map((id, index) =>
+        supabase.from("rewards").update({ sort_order: index }).eq("id", id),
+      ),
+    );
+    const firstError = results.find((r) => r.error)?.error;
+
+    if (firstError) {
+      // 失敗時は元の並びに戻す
+      setRewards(prevRewards);
+      return { error: firstError.message };
+    }
+    return { error: null };
+  };
+
   return (
     <RewardContext.Provider
       value={{
@@ -327,6 +373,7 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
         redeemReward,
         restockReward,
         reduceStockReward,
+        reorderRewards,
       }}
     >
       {children}

@@ -38,6 +38,7 @@ export interface Reward {
   remaining_quantity: number | null; // null = 在庫無制限
   image_url: string | null;
   is_active: boolean;
+  sort_order: number; // 支援者が並び替えた表示順（昇順）
   created_at: string;
 }
 

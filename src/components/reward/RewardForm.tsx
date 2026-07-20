@@ -1,27 +1,22 @@
 import { useState, useEffect } from "react";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Coins, Package, Eye, EyeOff } from "lucide-react";
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
+import { NumberStepper } from "../ui/NumberStepper";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
 
 interface RewardFormProps {
   isOpen: boolean;
   onToggle: () => void;
-  onSubmit: (
-    input:
-      | {
-          title: string;
-          description: string | null;
-          requiredPoints: number;
-          totalQuantity: number | null;
-          imageUrl?: string | null;
-        }
-      | {
-          title: string;
-          description: string | null;
-          requiredPoints: number;
-          imageUrl?: string | null;
-        },
-  ) => Promise<{ error: string | null }>;
+  onSubmit: (input: {
+    title: string;
+    description: string | null;
+    requiredPoints: number;
+    totalQuantity?: number | null;
+    remainingQuantity?: number | null;
+    imageUrl?: string | null;
+    isActive?: boolean;
+  }) => Promise<{ error: string | null }>;
   editingReward?: Reward | null;
   onCancelEdit?: () => void;
 }
@@ -35,26 +30,38 @@ export const RewardForm = ({
 }: RewardFormProps) => {
   const triggerHaptic = useHaptic();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [requiredPoints, setRequiredPoints] = useState<number | "">(50);
-  const [isUnlimited, setIsUnlimited] = useState(true);
-  const [totalQuantity, setTotalQuantity] = useState<number | "">(1);
-  const [imageUrl, setImageUrl] = useState("");
+  // 編集対象がある場合は、初回レンダリングの時点から編集対象の値を使う。
+  // マウント後にuseEffectで書き換える方式だと、初期値(デフォルト)が
+  // 一瞬だけ画面に出てから正しい値に切り替わる「ちらつき」が発生するため、
+  // useState の遅延初期化で最初から正しい値を用意する。
+  // （呼び出し側で editingReward ごとに key を変えてこのフォームを作り直す前提）
+  const [title, setTitle] = useState(() => editingReward?.title ?? "");
+  const [description, setDescription] = useState(
+    () => editingReward?.description ?? "",
+  );
+  const [requiredPoints, setRequiredPoints] = useState<number | "">(
+    () => editingReward?.required_points ?? 50,
+  );
+  const [isUnlimited, setIsUnlimited] = useState(
+    () => (editingReward ? editingReward.total_quantity === null : true),
+  );
+  const [totalQuantity, setTotalQuantity] = useState<number | "">(
+    () => editingReward?.total_quantity ?? 1,
+  );
+  const [remainingQuantity, setRemainingQuantity] = useState<number | "">(
+    () => editingReward?.remaining_quantity ?? 1,
+  );
+  const [imageUrl, setImageUrl] = useState(
+    () => editingReward?.image_url ?? "",
+  );
+  const [isActive, setIsActive] = useState(
+    () => editingReward?.is_active ?? true,
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isEditing = !!editingReward;
-
-  useEffect(() => {
-    if (editingReward) {
-      setTitle(editingReward.title);
-      setDescription(editingReward.description ?? "");
-      setRequiredPoints(editingReward.required_points);
-      setImageUrl(editingReward.image_url ?? "");
-    }
-  }, [editingReward]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -71,8 +78,22 @@ export const RewardForm = ({
     setRequiredPoints(50);
     setIsUnlimited(true);
     setTotalQuantity(1);
+    setRemainingQuantity(1);
     setImageUrl("");
+    setIsActive(true);
     setErrorMsg(null);
+  };
+
+  // 最大数（分母）を減らしたとき、現在の在庫（分子）がそれを上回らないように追従させる
+  const handleTotalQuantityChange = (value: number | "") => {
+    setTotalQuantity(value);
+    if (
+      typeof value === "number" &&
+      typeof remainingQuantity === "number" &&
+      remainingQuantity > value
+    ) {
+      setRemainingQuantity(value);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,29 +106,24 @@ export const RewardForm = ({
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    // 新規作成時のみ total_quantity(=在庫の総数) を指定する。
-    // 編集時は在庫数を扱わない（在庫の増減は一覧の「在庫を調整」から行う）ため、
-    // タイトルや必要ポイントなど在庫以外の項目のみを更新する。
-    const { error } = await onSubmit(
-      isEditing
-        ? {
-            title: title.trim(),
-            description: description.trim() || null,
-            requiredPoints: requiredPoints === "" ? 0 : requiredPoints,
-            imageUrl: imageUrl.trim() || null,
-          }
-        : {
-            title: title.trim(),
-            description: description.trim() || null,
-            requiredPoints: requiredPoints === "" ? 0 : requiredPoints,
-            totalQuantity: isUnlimited
-              ? null
-              : totalQuantity === ""
-                ? 0
-                : totalQuantity,
-            imageUrl: imageUrl.trim() || null,
-          },
-    );
+    const resolvedTotal =
+      totalQuantity === "" ? 0 : Math.max(0, totalQuantity);
+    const resolvedRemaining =
+      remainingQuantity === "" ? 0 : Math.max(0, remainingQuantity);
+
+    const { error } = await onSubmit({
+      title: title.trim(),
+      description: description.trim() || null,
+      requiredPoints: requiredPoints === "" ? 0 : requiredPoints,
+      totalQuantity: isUnlimited ? null : resolvedTotal,
+      remainingQuantity: isUnlimited
+        ? null
+        : isEditing
+          ? Math.min(resolvedRemaining, resolvedTotal)
+          : resolvedTotal,
+      imageUrl: imageUrl.trim() || null,
+      isActive,
+    });
 
     setIsSubmitting(false);
 
@@ -164,49 +180,32 @@ export const RewardForm = ({
           </button>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-amber-700 font-medium">
-            ごほうび名
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="例: 30分ゲームチケット"
-            className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-          />
-        </div>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="ごほうび名（例: 30分ゲームチケット）"
+          className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+        />
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-amber-700 font-medium">
-            説明（任意）
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="例: 好きなゲームを30分プレイできます"
-            rows={2}
-            className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
-          />
-        </div>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="説明（任意・例: 好きなゲームを30分プレイできます）"
+          rows={2}
+          className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
+        />
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-amber-700 font-medium">
-            画像URL（任意）
-          </label>
-          <input
-            type="text"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
-            className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-          />
-        </div>
+        <input
+          type="text"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="画像URL（任意）https://..."
+          className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+        />
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-amber-700 font-medium">
-            交換に必要なポイント
-          </label>
+        <div className="flex items-center gap-2">
+          <Coins className="text-amber-400 shrink-0" size={20} />
           <input
             type="number"
             min={0}
@@ -215,70 +214,73 @@ export const RewardForm = ({
               const val = e.target.value;
               setRequiredPoints(val === "" ? "" : Number(val));
             }}
-            className="border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            placeholder="必要ポイント"
+            className="w-24 border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
           />
+          <span className="text-sm font-bold text-amber-600">ポイント</span>
         </div>
 
-        {isEditing ? (
-          <div className="flex flex-col gap-1 bg-amber-50 rounded-lg px-3 py-2">
-            <span className="text-xs text-amber-700 font-medium">在庫</span>
-            <span className="text-xs text-amber-600">
-              現在の在庫：
-              {editingReward?.remaining_quantity === null
-                ? "無制限"
-                : `${editingReward?.remaining_quantity} / ${editingReward?.total_quantity ?? "?"}個`}
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1 text-xs font-bold text-amber-700">
+              <Package size={14} />
+              在庫
             </span>
-            <span className="text-[11px] text-amber-500">
-              在庫の補充・変更は一覧の「在庫を調整」ボタンから行えます
-            </span>
+            <ToggleSwitch
+              checked={isUnlimited}
+              onChange={setIsUnlimited}
+              label={isUnlimited ? "無制限" : "個数を指定"}
+            />
           </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-amber-700 font-medium">在庫</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic();
-                  setIsUnlimited(true);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
-                  isUnlimited
-                    ? "bg-amber-400 text-white border-transparent"
-                    : "bg-white text-amber-600 border-amber-300"
-                }`}
-              >
-                無制限
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic();
-                  setIsUnlimited(false);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
-                  !isUnlimited
-                    ? "bg-amber-400 text-white border-transparent"
-                    : "bg-white text-amber-600 border-amber-300"
-                }`}
-              >
-                個数を指定
-              </button>
-              {!isUnlimited && (
-                <input
-                  type="number"
-                  min={0}
+
+          {!isUnlimited && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-amber-600 shrink-0">
+                  最大数
+                </span>
+                <NumberStepper
                   value={totalQuantity}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setTotalQuantity(val === "" ? "" : Number(val));
-                  }}
-                  className="w-20 border border-amber-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  onChange={handleTotalQuantityChange}
+                  min={0}
+                  size="sm"
                 />
+              </div>
+              {isEditing && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-emerald-600 shrink-0">
+                    現在の在庫
+                  </span>
+                  <NumberStepper
+                    value={remainingQuantity}
+                    onChange={setRemainingQuantity}
+                    min={0}
+                    max={
+                      typeof totalQuantity === "number"
+                        ? totalQuantity
+                        : undefined
+                    }
+                    size="sm"
+                    accentClassName="border-emerald-200 focus:ring-emerald-300 hover:bg-emerald-50 text-emerald-600"
+                  />
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border border-amber-100 p-3">
+          <span className="flex items-center gap-1 text-xs font-bold text-amber-700">
+            {isActive ? <Eye size={14} /> : <EyeOff size={14} />}
+            学習者への表示
+          </span>
+          <ToggleSwitch
+            checked={isActive}
+            onChange={setIsActive}
+            label={isActive ? "表示中" : "非表示"}
+            accentClassName="bg-emerald-500"
+          />
+        </div>
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
 

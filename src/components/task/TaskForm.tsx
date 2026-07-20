@@ -3,6 +3,7 @@ import { X, Plus, Coins } from "lucide-react";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
+import { Modal } from "../ui/Modal";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -299,15 +300,19 @@ export const TaskForm = ({
           type="date"
           value={scheduledAt}
           onChange={(e) => setScheduledAt(e.target.value)}
-          className={`border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 ${!scheduledAt ? 'text-slate-400' : 'text-slate-900'}`}
+          className={`border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 ${!scheduledAt ? "text-slate-400" : "text-slate-900"}`}
           // 未入力時に「予定日（任意）」と表示させるための疑似プレースホルダー
           data-placeholder="予定日（任意）"
-          style={{
-             // input[type="date"]が空の時にdata-placeholderの文字を出すCSS小技
-             // (※ブラウザ依存があるため、Tailwindのみで完全対応は難しいですが、実用範囲です)
-          }}
+          style={
+            {
+              // input[type="date"]が空の時にdata-placeholderの文字を出すCSS小技
+              // (※ブラウザ依存があるため、Tailwindのみで完全対応は難しいですが、実用範囲です)
+            }
+          }
         />
-        <style dangerouslySetInnerHTML={{__html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           input[type="date"]:empty::before {
             content: attr(data-placeholder);
             color: #94a3b8; /* text-slate-400 */
@@ -316,7 +321,9 @@ export const TaskForm = ({
           input[type="date"]:valid::before {
             content: "";
           }
-        `}} />
+        `,
+          }}
+        />
 
         {/* ポイント（RewardFormに似た横並びレイアウト） */}
         <div className="flex items-center gap-2">
@@ -347,97 +354,113 @@ export const TaskForm = ({
       </form>
 
       {isCreatingCategory && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-bold text-sky-800">カテゴリを新規作成</h4>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic();
-                  setIsCreatingCategory(false);
-                }}
-                className="p-1 rounded-full hover:bg-sky-50 text-sky-400"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                onKeyDown={handleCategoryKeyDown}
-                placeholder="新しいカテゴリ名"
-                autoFocus
-                className="flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
-              />
-              <input
-                type="color"
-                value={newCategoryColor}
-                onChange={(e) => setNewCategoryColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-sky-200 cursor-pointer p-1"
-              />
-            </div>
-            <div className="flex gap-2 mt-1">
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                className="flex-1 py-2 text-sm font-semibold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors"
-              >
-                追加して選択
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic();
-                  setIsCreatingCategory(false);
-                }}
-                className="flex-1 py-2 text-sm font-semibold bg-white text-sky-600 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors"
-              >
-                キャンセル
-              </button>
-            </div>
+        <Modal
+          isOpen={isCreatingCategory}
+          onClose={() => {
+            triggerHaptic();
+            setIsCreatingCategory(false);
+          }}
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm flex flex-col gap-3"
+        >
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-sky-800">カテゴリを新規作成</h4>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setIsCreatingCategory(false);
+              }}
+              className="p-1 rounded-full hover:bg-sky-50 text-sky-400"
+            >
+              <X size={18} />
+            </button>
           </div>
-        </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={handleCategoryKeyDown}
+              placeholder="新しいカテゴリ名"
+              autoFocus
+              className="flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+            />
+            <input
+              type="color"
+              value={newCategoryColor}
+              onChange={(e) => setNewCategoryColor(e.target.value)}
+              className="w-10 h-10 rounded-lg border border-sky-200 cursor-pointer p-1"
+            />
+          </div>
+          <div className="flex gap-2 mt-1">
+            <button
+              type="button"
+              onClick={handleAddCategory}
+              className="flex-1 py-2 text-sm font-semibold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors"
+            >
+              追加して選択
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setIsCreatingCategory(false);
+              }}
+              className="flex-1 py-2 text-sm font-semibold bg-white text-sky-600 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        </Modal>
       )}
 
       {categoryToDelete && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm flex flex-col gap-4">
-            <h4 className="font-bold text-slate-800 text-center">
-              「{categoryToDelete.name}」を削除しますか？
-            </h4>
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={handleDeleteCategory}
-                className="flex-1 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                削除する
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic();
-                  setCategoryToDelete(null);
-                }}
-                className="flex-1 py-2 text-sm font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-              >
-                キャンセル
-              </button>
-            </div>
+        <Modal
+          isOpen={!!categoryToDelete}
+          onClose={() => {
+            triggerHaptic();
+            setCategoryToDelete(null);
+          }}
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm flex flex-col gap-4"
+        >
+          <h4 className="font-bold text-slate-800 text-center">
+            「{categoryToDelete.name}」を削除しますか？
+          </h4>
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={handleDeleteCategory}
+              className="flex-1 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              削除する
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setCategoryToDelete(null);
+              }}
+              className="flex-1 py-2 text-sm font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              キャンセル
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
 
   if (isEditing) {
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <Modal
+        isOpen={isEditing}
+        overlayClassName="z-40"
+        contentClassName="w-full max-w-md max-h-[90vh] overflow-y-auto"
+      >
         {formContent}
-      </div>
+      </Modal>
     );
   }
 

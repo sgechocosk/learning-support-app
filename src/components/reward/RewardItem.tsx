@@ -12,6 +12,7 @@ import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { useProfile } from "../../hooks/useProfile";
 import { shareRedemptionImage } from "../../lib/shareRedemption";
+import { Modal } from "../ui/Modal";
 
 interface RewardItemProps {
   reward: Reward;
@@ -270,101 +271,93 @@ export const RewardItem = ({
       </div>
 
       {isConfirming && (
-        <div
-          onClick={() => {
+        <Modal
+          isOpen={isConfirming}
+          onClose={() => {
             triggerHaptic();
             setIsConfirming(false);
             setErrorMsg(null);
           }}
-          onKeyDown={(e) => e.stopPropagation()}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
-          >
-            <Gift className="w-10 h-10 text-amber-400" />
-            <h4 className="font-black text-slate-800">
-              「{reward.title}」と交換しますか？
-            </h4>
-            <p className="text-sm text-slate-500">
-              <span className="font-black text-amber-500">
-                {reward.required_points}pt
-              </span>{" "}
-              を消費します
-            </p>
-            {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
-            <div className="flex gap-2 w-full mt-1">
-              <button
-                onClick={handleRedeemConfirm}
-                disabled={isRedeeming}
-                className="flex-1 py-2 text-sm font-bold bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition-colors disabled:opacity-50"
-              >
-                {isRedeeming ? "交換中..." : "交換する"}
-              </button>
-              <button
-                onClick={() => {
-                  triggerHaptic();
-                  setIsConfirming(false);
-                  setErrorMsg(null);
-                }}
-                className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-              >
-                キャンセル
-              </button>
-            </div>
+          <Gift className="w-10 h-10 text-amber-400" />
+          <h4 className="font-black text-slate-800">
+            「{reward.title}」と交換しますか？
+          </h4>
+          <p className="text-sm text-slate-500">
+            <span className="font-black text-amber-500">
+              {reward.required_points}pt
+            </span>{" "}
+            を消費します
+          </p>
+          {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
+          <div className="flex gap-2 w-full mt-1">
+            <button
+              onClick={handleRedeemConfirm}
+              disabled={isRedeeming}
+              className="flex-1 py-2 text-sm font-bold bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition-colors disabled:opacity-50"
+            >
+              {isRedeeming ? "交換中..." : "交換する"}
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setIsConfirming(false);
+                setErrorMsg(null);
+              }}
+              className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              キャンセル
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showSharePrompt && (
-        <div
-          onClick={() => {
+        <Modal
+          isOpen={showSharePrompt}
+          onClose={() => {
             if (isSharing) return;
             triggerHaptic();
             setShowSharePrompt(false);
             setShareNotice(null);
           }}
-          onKeyDown={(e) => e.stopPropagation()}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
-          >
-            <Share2 className="w-10 h-10 text-sky-400" />
-            <h4 className="font-black text-slate-800">
-              交換したことを{partnerName ?? "支援者"}さんに共有する？
-            </h4>
-            <p className="text-sm text-slate-500">
-              「{reward.title}
-              」と交換したことをLINEなどで送れます
-            </p>
-            {shareNotice && (
-              <p className="text-xs text-slate-500">{shareNotice}</p>
-            )}
-            <div className="flex gap-2 w-full mt-1">
-              <button
-                onClick={handleShare}
-                disabled={isSharing}
-                className="flex-1 py-2 text-sm font-bold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors disabled:opacity-50"
-              >
-                {isSharing ? "作成中..." : "共有する"}
-              </button>
-              <button
-                onClick={() => {
-                  triggerHaptic();
-                  setShowSharePrompt(false);
-                  setShareNotice(null);
-                }}
-                disabled={isSharing}
-                className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
-              >
-                しない
-              </button>
-            </div>
+          <Share2 className="w-10 h-10 text-sky-400" />
+          <h4 className="font-black text-slate-800">
+            交換したことを{partnerName ?? "支援者"}さんに共有する？
+          </h4>
+          <p className="text-sm text-slate-500">
+            「{reward.title}
+            」と交換したことをLINEなどで送れます
+          </p>
+          {shareNotice && (
+            <p className="text-xs text-slate-500">{shareNotice}</p>
+          )}
+          <div className="flex gap-2 w-full mt-1">
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="flex-1 py-2 text-sm font-bold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors disabled:opacity-50"
+            >
+              {isSharing ? "作成中..." : "共有する"}
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setShowSharePrompt(false);
+                setShareNotice(null);
+              }}
+              disabled={isSharing}
+              className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
+            >
+              しない
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

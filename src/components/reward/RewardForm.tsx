@@ -4,6 +4,7 @@ import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { NumberStepper } from "../ui/NumberStepper";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
+import { Modal } from "../ui/Modal";
 
 interface RewardFormProps {
   isOpen: boolean;
@@ -42,8 +43,8 @@ export const RewardForm = ({
   const [requiredPoints, setRequiredPoints] = useState<number | "">(
     () => editingReward?.required_points ?? 50,
   );
-  const [isUnlimited, setIsUnlimited] = useState(
-    () => (editingReward ? editingReward.total_quantity === null : true),
+  const [isUnlimited, setIsUnlimited] = useState(() =>
+    editingReward ? editingReward.total_quantity === null : true,
   );
   const [totalQuantity, setTotalQuantity] = useState<number | "">(
     () => editingReward?.total_quantity ?? 1,
@@ -106,8 +107,7 @@ export const RewardForm = ({
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    const resolvedTotal =
-      totalQuantity === "" ? 0 : Math.max(0, totalQuantity);
+    const resolvedTotal = totalQuantity === "" ? 0 : Math.max(0, totalQuantity);
     const resolvedRemaining =
       remainingQuantity === "" ? 0 : Math.max(0, remainingQuantity);
 
@@ -236,9 +236,7 @@ export const RewardForm = ({
           {!isUnlimited && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-amber-600 shrink-0">
-                  最大数
-                </span>
+                <span className="text-xs text-amber-600 shrink-0">最大数</span>
                 <NumberStepper
                   value={totalQuantity}
                   onChange={handleTotalQuantityChange}
@@ -297,9 +295,13 @@ export const RewardForm = ({
 
   if (isEditing) {
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <Modal
+        isOpen={isEditing}
+        overlayClassName="z-40"
+        contentClassName="w-full max-w-md max-h-[90vh] overflow-y-auto"
+      >
         {formContent}
-      </div>
+      </Modal>
     );
   }
 

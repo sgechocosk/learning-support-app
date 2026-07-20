@@ -10,8 +10,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Learning Support App",
-        short_name: "LearningApp",
+        name: "学習支援アプリ",
+        short_name: "学習支援アプリ",
         theme_color: "#ffffff",
         icons: [
           {

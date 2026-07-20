@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   isOpen: boolean;
@@ -7,6 +8,12 @@ interface ModalProps {
   contentClassName?: string;
   overlayClassName?: string;
 }
+
+// モーダルはヘッダー/フッターを除いたコンテンツ領域内にのみ描画する。
+// App.tsx がコンテンツ領域(ヘッダーとフッターの間)に用意した
+// #modal-portal-root にポータルで描画することで、
+// ヘッダー・フッターは常にオーバーレイの外＝操作可能なままになる。
+const MODAL_PORTAL_ROOT_ID = "modal-portal-root";
 
 export const Modal = ({
   isOpen,
@@ -31,9 +38,9 @@ export const Modal = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modal = (
     <div
-      className={`fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 ${overlayClassName}`}
+      className={`absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 touch-none overscroll-none pointer-events-auto ${overlayClassName}`}
       onClick={() => onClose?.()}
       role="dialog"
       aria-modal="true"
@@ -46,4 +53,7 @@ export const Modal = ({
       </div>
     </div>
   );
+
+  const portalRoot = document.getElementById(MODAL_PORTAL_ROOT_ID);
+  return portalRoot ? createPortal(modal, portalRoot) : modal;
 };

@@ -157,7 +157,7 @@ export const RewardForm = ({
     <div
       className={
         isEditing
-          ? "bg-white rounded-xl shadow-xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto"
+          ? "bg-white rounded-xl shadow-xl p-4 w-full max-w-md"
           : "bg-white rounded-xl shadow-sm p-4"
       }
     >
@@ -297,8 +297,13 @@ export const RewardForm = ({
     return (
       <Modal
         isOpen={isEditing}
+        onClose={() => {
+          triggerHaptic();
+          resetForm();
+          onCancelEdit?.();
+        }}
         overlayClassName="z-40"
-        contentClassName="w-full max-w-md max-h-[90vh] overflow-y-auto"
+        contentClassName="w-full max-w-md"
       >
         {formContent}
       </Modal>

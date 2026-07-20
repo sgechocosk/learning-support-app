@@ -123,6 +123,7 @@ export const TaskForm = ({
     timerRef.current = setTimeout(() => {
       isLongPressed.current = true;
       triggerHaptic();
+      setIsCreatingCategory(false);
       setCategoryToDelete(c);
     }, 500);
   };
@@ -213,7 +214,7 @@ export const TaskForm = ({
     <div
       className={
         isEditing
-          ? "bg-white rounded-xl shadow-xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto"
+          ? "bg-white rounded-xl shadow-xl p-4 w-full max-w-md"
           : "bg-white rounded-xl shadow-sm p-4"
       }
     >
@@ -276,6 +277,7 @@ export const TaskForm = ({
               type="button"
               onClick={() => {
                 triggerHaptic();
+                setCategoryToDelete(null);
                 setIsCreatingCategory(true);
               }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-sky-400 bg-white border border-dashed border-sky-300 rounded-full hover:bg-sky-50 transition-colors"
@@ -284,6 +286,93 @@ export const TaskForm = ({
               新規
             </button>
           </div>
+
+          {/* カテゴリの新規作成・削除は、別レイヤーのモーダルを重ねず
+              同じフォームパネル内にインライン表示する(ネストしたモーダルを避けるため) */}
+          {isCreatingCategory && (
+            <div className="flex flex-col gap-2 p-3 bg-sky-50 rounded-lg border border-sky-100 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-sky-800">
+                  カテゴリを新規作成
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic();
+                    setIsCreatingCategory(false);
+                    setNewCategoryName("");
+                  }}
+                  className="p-1 rounded-full hover:bg-white text-sky-400"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={handleCategoryKeyDown}
+                  placeholder="新しいカテゴリ名"
+                  autoFocus
+                  className="flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+                />
+                <input
+                  type="color"
+                  value={newCategoryColor}
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-sky-200 cursor-pointer p-1 bg-white"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddCategory}
+                  className="flex-1 py-2 text-sm font-semibold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors"
+                >
+                  追加して選択
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic();
+                    setIsCreatingCategory(false);
+                    setNewCategoryName("");
+                  }}
+                  className="flex-1 py-2 text-sm font-semibold bg-white text-sky-600 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          )}
+
+          {categoryToDelete && (
+            <div className="flex flex-col gap-3 p-3 bg-red-50 rounded-lg border border-red-100 animate-in fade-in duration-150">
+              <p className="text-sm font-bold text-slate-800 text-center">
+                「{categoryToDelete.name}」を削除しますか？
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleDeleteCategory}
+                  className="flex-1 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  削除する
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic();
+                    setCategoryToDelete(null);
+                  }}
+                  className="flex-1 py-2 text-sm font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* タスク名 */}
@@ -352,103 +441,6 @@ export const TaskForm = ({
           {isSubmitting ? "保存中..." : isEditing ? "更新する" : "作成する"}
         </button>
       </form>
-
-      {isCreatingCategory && (
-        <Modal
-          isOpen={isCreatingCategory}
-          onClose={() => {
-            triggerHaptic();
-            setIsCreatingCategory(false);
-          }}
-          overlayClassName="z-50"
-          contentClassName="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm flex flex-col gap-3"
-        >
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-sky-800">カテゴリを新規作成</h4>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic();
-                setIsCreatingCategory(false);
-              }}
-              className="p-1 rounded-full hover:bg-sky-50 text-sky-400"
-            >
-              <X size={18} />
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              onKeyDown={handleCategoryKeyDown}
-              placeholder="新しいカテゴリ名"
-              autoFocus
-              className="flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
-            />
-            <input
-              type="color"
-              value={newCategoryColor}
-              onChange={(e) => setNewCategoryColor(e.target.value)}
-              className="w-10 h-10 rounded-lg border border-sky-200 cursor-pointer p-1"
-            />
-          </div>
-          <div className="flex gap-2 mt-1">
-            <button
-              type="button"
-              onClick={handleAddCategory}
-              className="flex-1 py-2 text-sm font-semibold bg-sky-400 text-white rounded-lg hover:bg-sky-500 transition-colors"
-            >
-              追加して選択
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic();
-                setIsCreatingCategory(false);
-              }}
-              className="flex-1 py-2 text-sm font-semibold bg-white text-sky-600 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors"
-            >
-              キャンセル
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {categoryToDelete && (
-        <Modal
-          isOpen={!!categoryToDelete}
-          onClose={() => {
-            triggerHaptic();
-            setCategoryToDelete(null);
-          }}
-          overlayClassName="z-50"
-          contentClassName="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm flex flex-col gap-4"
-        >
-          <h4 className="font-bold text-slate-800 text-center">
-            「{categoryToDelete.name}」を削除しますか？
-          </h4>
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={handleDeleteCategory}
-              className="flex-1 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-            >
-              削除する
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic();
-                setCategoryToDelete(null);
-              }}
-              className="flex-1 py-2 text-sm font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-            >
-              キャンセル
-            </button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 
@@ -456,8 +448,13 @@ export const TaskForm = ({
     return (
       <Modal
         isOpen={isEditing}
+        onClose={() => {
+          triggerHaptic();
+          resetForm();
+          onCancelEdit?.();
+        }}
         overlayClassName="z-40"
-        contentClassName="w-full max-w-md max-h-[90vh] overflow-y-auto"
+        contentClassName="w-full max-w-md"
       >
         {formContent}
       </Modal>

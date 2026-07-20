@@ -51,6 +51,9 @@ export function usePullToRefresh<T extends HTMLElement>({
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
       if (disabled || isRefreshing) return;
+      // モーダル表示中(Modal.tsxがbodyのtouch-actionをnoneにしている間)は
+      // 背後のリストがプルダウン更新できないようにする
+      if (document.body.style.touchAction === "none") return;
       const scrollEl = scrollElRef.current;
       // 一番上までスクロールされている時だけプル開始を許可
       if (scrollEl && scrollEl.scrollTop > 0) return;
@@ -64,6 +67,12 @@ export function usePullToRefresh<T extends HTMLElement>({
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (!pulling.current || disabled || isRefreshing) return;
+      // モーダルが表示された状態で引き続きプル中だった場合も中断する
+      if (document.body.style.touchAction === "none") {
+        pulling.current = false;
+        setPullDistance(0);
+        return;
+      }
       const scrollEl = scrollElRef.current;
       if (scrollEl && scrollEl.scrollTop > 0) {
         // 途中で通常スクロールに切り替わったら中断

@@ -153,6 +153,14 @@ export default function App() {
                   {activeTab === 3 && <Timer />}
                   {activeTab === 4 && <Reward />}
                 </TabContent>
+
+                {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
+                    オーバーレイを表示するためのポータルルート。
+                    中身が無い時はクリックを透過させ、下のコンテンツを操作可能にする。 */}
+                <div
+                  id="modal-portal-root"
+                  className="absolute inset-0 pointer-events-none"
+                />
               </div>
 
               <Footer

@@ -209,12 +209,18 @@ export const RewardItem = ({
             : "cursor-default"
         }`}
       >
-        <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-sky-50 flex items-center justify-center">
+        <div
+          className={`relative aspect-square w-full overflow-hidden shrink-0 flex items-center justify-center ${
+            reward.image_url
+              ? "bg-white"
+              : "bg-gradient-to-br from-amber-50 to-sky-50"
+          }`}
+        >
           {reward.image_url ? (
             <img
               src={reward.image_url}
               alt={reward.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <Gift className="w-12 h-12 text-amber-300" />

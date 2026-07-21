@@ -186,6 +186,8 @@ export default function HerbariumFlask({
     const neckTop = cy - R * Math.cos(theta) - neckHeight;
 
     const dropOne = () => {
+      if (spawnedCountRef.current >= 200) return;
+
       const dropX = cx + (Math.random() - 0.5) * 40;
       const dropY = neckTop - 50;
       const r = baseRadius - 0.8 + Math.random() * 1.6;
@@ -223,11 +225,13 @@ export default function HerbariumFlask({
 
     dropQueue(count);
 
+    const fillStyleRgba = hexToRgba(glassColorHex, 0.15);
+    const strokeStyleRgba = hexToRgba(glassColorHex, 0.8);
+    const neckRightX = cx + openingWidth / 2;
+    const neckLeftX = cx - openingWidth / 2;
+
     Events.on(render, "afterRender", () => {
       const context = render.context;
-      const colorHex = glassColorHex;
-      const neckRightX = cx + openingWidth / 2;
-      const neckLeftX = cx - openingWidth / 2;
 
       context.beginPath();
       context.moveTo(neckRightX, neckTop);
@@ -242,7 +246,7 @@ export default function HerbariumFlask({
       );
       context.lineTo(neckLeftX, neckTop);
 
-      context.fillStyle = hexToRgba(colorHex, 0.15);
+      context.fillStyle = fillStyleRgba;
       context.fill();
 
       const bodies = Composite.allBodies(engine.world);
@@ -267,7 +271,7 @@ export default function HerbariumFlask({
       context.lineWidth = thickness;
       context.lineCap = "round";
       context.lineJoin = "round";
-      context.strokeStyle = hexToRgba(colorHex, 0.8);
+      context.strokeStyle = strokeStyleRgba;
       context.stroke();
 
       const currentCount = countRef.current;
@@ -275,7 +279,7 @@ export default function HerbariumFlask({
 
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.strokeStyle = colorHex;
+      context.strokeStyle = glassColorHex;
       context.fillStyle = "rgba(255, 255, 255, 1.0)";
 
       context.font = "bold 90px sans-serif";
@@ -314,7 +318,22 @@ export default function HerbariumFlask({
   }, [isLoaded, width, height, glassColorHex]);
 
   useEffect(() => {
-    if (!isLoaded || !dropFnRef.current) return;
+    if (!isLoaded || !dropFnRef.current || !bodiesApiRef.current) return;
+
+    if (count === 0) {
+      const { Composite, engine } = bodiesApiRef.current;
+      const bodies = Composite.allBodies(engine.world);
+      const strawberries = bodies.filter((b: any) => b.label === "strawberry");
+
+      strawberries.forEach((b: any) => {
+        Composite.remove(engine.world, b);
+      });
+
+      spawnedCountRef.current = 0;
+      pendingCountRef.current = 0;
+      return;
+    }
+
     const diff = count - spawnedCountRef.current - pendingCountRef.current;
     if (diff > 0) {
       dropFnRef.current(diff);

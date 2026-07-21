@@ -21,6 +21,7 @@ import { ProfileProvider } from "./contexts/ProfileContext";
 import { CategoryProvider } from "./contexts/CategoryContext";
 import { TaskProvider } from "./contexts/TaskContext";
 import { RewardProvider } from "./contexts/RewardContext";
+import { TimerSettingsProvider } from "./contexts/TimerSettingsContext";
 
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
@@ -117,8 +118,9 @@ export default function App() {
       <CategoryProvider>
         <TaskProvider>
           <RewardProvider>
-            <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-              <style>{`
+            <TimerSettingsProvider>
+              <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+                <style>{`
           :root {
             --click-x: ${clickPos.x}px;
             --click-y: ${clickPos.y}px;
@@ -133,49 +135,50 @@ export default function App() {
           .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
         `}</style>
 
-              <Header onOpenOverlay={openOverlay} />
+                <Header onOpenOverlay={openOverlay} />
 
-              <div className="flex-1 overflow-hidden relative bg-gray-50">
-                <TabContent
-                  ref={scrollContainerRef}
-                  activeTab={activeTab}
-                  slideDirection={slideDirection}
-                >
-                  {activeTab === 0 && (
-                    <Home
-                      currentTabInfo={TABS[activeTab]}
-                      message={message}
-                      onMainActionClick={handleMainActionClick}
-                    />
-                  )}
-                  {activeTab === 1 && <Calendar />}
-                  {activeTab === 2 && <Task />}
-                  {activeTab === 3 && <Timer />}
-                  {activeTab === 4 && <Reward />}
-                </TabContent>
+                <div className="flex-1 overflow-hidden relative bg-gray-50">
+                  <TabContent
+                    ref={scrollContainerRef}
+                    activeTab={activeTab}
+                    slideDirection={slideDirection}
+                  >
+                    {activeTab === 0 && (
+                      <Home
+                        currentTabInfo={TABS[activeTab]}
+                        message={message}
+                        onMainActionClick={handleMainActionClick}
+                      />
+                    )}
+                    {activeTab === 1 && <Calendar />}
+                    {activeTab === 2 && <Task />}
+                    {activeTab === 3 && <Timer />}
+                    {activeTab === 4 && <Reward />}
+                  </TabContent>
 
-                {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
+                  {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
                     オーバーレイを表示するためのポータルルート。
                     中身が無い時はクリックを透過させ、下のコンテンツを操作可能にする。 */}
-                <div
-                  id="modal-portal-root"
-                  className="absolute inset-0 pointer-events-none"
+                  <div
+                    id="modal-portal-root"
+                    className="absolute inset-0 pointer-events-none"
+                  />
+                </div>
+
+                <Footer
+                  activeTab={activeTab}
+                  isMoving={isMoving}
+                  onTabChange={handleTabChange}
+                />
+
+                <Overlay
+                  type={overlayType}
+                  isClosing={isOverlayClosing}
+                  lastSignInAt={lastSignInAt}
+                  onClose={closeOverlay}
                 />
               </div>
-
-              <Footer
-                activeTab={activeTab}
-                isMoving={isMoving}
-                onTabChange={handleTabChange}
-              />
-
-              <Overlay
-                type={overlayType}
-                isClosing={isOverlayClosing}
-                lastSignInAt={lastSignInAt}
-                onClose={closeOverlay}
-              />
-            </div>
+            </TimerSettingsProvider>
           </RewardProvider>
         </TaskProvider>
       </CategoryProvider>

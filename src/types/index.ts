@@ -52,6 +52,14 @@ export interface RewardRedemption {
   redeemed_at: string;
 }
 
+export interface TimerSettings {
+  pair_id: string;
+  interval_minutes: number; // いちごが1つ貯まるまでの分数（1〜10の自然数）
+  continue_in_background: boolean; // タブ/アプリを離れても継続するか
+  points_timing: "realtime" | "on_finish"; // ポイント付与タイミング
+  updated_at: string;
+}
+
 export interface Task {
   id: string;
   pair_id: string;

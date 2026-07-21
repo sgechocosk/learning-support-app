@@ -161,7 +161,7 @@ export default function App() {
                     中身が無い時はクリックを透過させ、下のコンテンツを操作可能にする。 */}
                   <div
                     id="modal-portal-root"
-                    className="absolute inset-0 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none z-10"
                   />
                 </div>
 

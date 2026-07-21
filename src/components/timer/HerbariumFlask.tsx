@@ -171,6 +171,37 @@ export default function HerbariumFlask({
 
     Composite.add(engine.world, parts);
 
+    const neckTop = cy - R * Math.cos(theta) - neckHeight;
+
+    // --- 初期配置処理: すでに獲得済みのいちごを瓶の中に直接配置 ---
+    for (let i = 0; i < countRef.current; i++) {
+      // 瓶の内部に収まるように極座標でランダム配置
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * (R * 0.7);
+      const dropX = cx + Math.cos(angle) * distance;
+      const dropY = cy + Math.sin(angle) * distance;
+      const r = baseRadius - 0.8 + Math.random() * 1.6;
+
+      const ball = Bodies.circle(dropX, dropY, r, {
+        label: "strawberry",
+        restitution: 0.1,
+        friction: 0.2,
+        frictionAir: 0.005,
+        density: 0.05,
+        sleepThreshold: 300,
+        render: { visible: false },
+      });
+
+      Composite.add(engine.world, ball);
+      spawnedCountRef.current += 1;
+    }
+
+    // 描画開始前に物理演算を少し進め、重力を適用して自然に積み重ねる
+    for (let i = 0; i < 90; i++) {
+      Engine.update(engine, 1000 / 60);
+    }
+    // -------------------------------------------------------------
+
     const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse,
@@ -183,11 +214,7 @@ export default function HerbariumFlask({
     const runner = Runner.create();
     Runner.run(runner, engine);
 
-    const neckTop = cy - R * Math.cos(theta) - neckHeight;
-
     const dropOne = () => {
-      if (spawnedCountRef.current >= 200) return;
-
       const dropX = cx + (Math.random() - 0.5) * 40;
       const dropY = neckTop - 50;
       const r = baseRadius - 0.8 + Math.random() * 1.6;
@@ -223,15 +250,11 @@ export default function HerbariumFlask({
       }
     }, 90);
 
-    dropQueue(count);
-
-    const fillStyleRgba = hexToRgba(glassColorHex, 0.15);
-    const strokeStyleRgba = hexToRgba(glassColorHex, 0.8);
-    const neckRightX = cx + openingWidth / 2;
-    const neckLeftX = cx - openingWidth / 2;
-
     Events.on(render, "afterRender", () => {
       const context = render.context;
+      const colorHex = glassColorHex;
+      const neckRightX = cx + openingWidth / 2;
+      const neckLeftX = cx - openingWidth / 2;
 
       context.beginPath();
       context.moveTo(neckRightX, neckTop);
@@ -246,7 +269,7 @@ export default function HerbariumFlask({
       );
       context.lineTo(neckLeftX, neckTop);
 
-      context.fillStyle = fillStyleRgba;
+      context.fillStyle = hexToRgba(colorHex, 0.15);
       context.fill();
 
       const bodies = Composite.allBodies(engine.world);
@@ -271,7 +294,7 @@ export default function HerbariumFlask({
       context.lineWidth = thickness;
       context.lineCap = "round";
       context.lineJoin = "round";
-      context.strokeStyle = strokeStyleRgba;
+      context.strokeStyle = hexToRgba(colorHex, 0.8);
       context.stroke();
 
       const currentCount = countRef.current;
@@ -279,7 +302,7 @@ export default function HerbariumFlask({
 
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.strokeStyle = glassColorHex;
+      context.strokeStyle = colorHex;
       context.fillStyle = "rgba(255, 255, 255, 1.0)";
 
       context.font = "bold 90px sans-serif";

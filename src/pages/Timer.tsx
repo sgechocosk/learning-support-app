@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Play, Pause, CheckCircle2, Heart, Settings2 } from "lucide-react";
+import { Play, Pause, CheckCircle2, Heart } from "lucide-react";
 import HerbariumFlask from "../components/timer/HerbariumFlask";
 import { NumberStepper } from "../components/ui/NumberStepper";
 import { ToggleSwitch } from "../components/ui/ToggleSwitch";
@@ -195,7 +195,6 @@ function LearnerTimerPanel() {
     pointsTiming,
     isRunning,
     elapsedMs,
-    totalWorkedMs,
     strawberryCount,
     pendingPoints,
     msUntilNextStrawberry,

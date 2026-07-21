@@ -1,13 +1,14 @@
 import { useState } from "react";
 import {
+  Icon,
   Pencil,
   Trash2,
   Gift,
   PackageX,
   Sparkles,
-  Coins,
   Share2,
 } from "lucide-react";
+import { strawberry } from "@lucide/lab";
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { useProfile } from "../../hooks/useProfile";
@@ -122,7 +123,7 @@ export const RewardItem = ({
           {thumbnail}
 
           <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-white bg-amber-400 shadow-sm shrink-0">
-            <Coins size={10} />
+            <Icon iconNode={strawberry} size={10} />
             {reward.required_points}コ
           </span>
 
@@ -262,7 +263,7 @@ export const RewardItem = ({
                 canAfford ? "text-amber-500" : "text-slate-300"
               }`}
             >
-              <Coins size={14} />
+              <Icon iconNode={strawberry} size={14} />
               <span className="text-lg">{reward.required_points}</span>
               <span className="text-[10px] font-bold opacity-70">コ</span>
             </span>

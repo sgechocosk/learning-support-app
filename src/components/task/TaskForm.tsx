@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Plus, Coins } from "lucide-react";
+import { Icon, X, Plus } from "lucide-react";
+import { strawberry } from "@lucide/lab";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
@@ -416,7 +417,7 @@ export const TaskForm = ({
 
         {/* ポイント（RewardFormに似た横並びレイアウト） */}
         <div className="flex items-center gap-2">
-          <Coins className="text-sky-400 shrink-0" size={20} />
+          <Icon iconNode={strawberry} className="text-sky-400 shrink-0" size={20} />
           <input
             type="number"
             min={0}
@@ -428,7 +429,7 @@ export const TaskForm = ({
             placeholder="獲得いちご"
             className="w-28 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
           />
-          <span className="text-sm font-bold text-sky-600">いちご</span>
+          <span className="text-sm font-bold text-sky-600">コ</span>
         </div>
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}

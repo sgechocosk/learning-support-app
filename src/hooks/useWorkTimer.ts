@@ -76,7 +76,7 @@ const requestAwardPoints = async (amount: number) => {
 
 export const useWorkTimer = () => {
   const { profile, updateProfileState } = useProfile();
-  const { settings } = useTimerSettings();
+  const { settings, notifyTimerActive } = useTimerSettings();
 
   const intervalMinutes = settings?.interval_minutes ?? 5;
   const continueInBackground = settings?.continue_in_background ?? false;
@@ -122,6 +122,12 @@ export const useWorkTimer = () => {
     const id = setInterval(() => setNowTick(Date.now()), 500);
     return () => clearInterval(id);
   }, [isRunning]);
+
+  // タイマー動作中は支援者側の設定変更をすぐに反映させない。
+  // 開始前・停止後（isRunning === false）のタイミングでのみ同期される。
+  useEffect(() => {
+    notifyTimerActive(isRunning);
+  }, [isRunning, notifyTimerActive]);
 
   const sessionElapsedMs =
     accumulatedMs +

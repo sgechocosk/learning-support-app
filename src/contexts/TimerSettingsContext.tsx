@@ -1,4 +1,11 @@
-import { createContext, useState, useEffect, type ReactNode } from "react";
+import {
+  createContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { TimerSettings } from "../types";
 import { useProfile } from "../hooks/useProfile";
@@ -25,6 +32,10 @@ interface TimerSettingsContextType {
       >
     >,
   ) => Promise<{ error: string | null }>;
+  // 学習者側のタイマーが動作中かどうかを通知する。
+  // 動作中に受信した支援者側の変更はすぐに反映せず、
+  // 動作していないタイミング（開始前・停止後）まで保留する。
+  notifyTimerActive: (active: boolean) => void;
 }
 
 export const TimerSettingsContext = createContext<
@@ -39,6 +50,29 @@ export const TimerSettingsProvider = ({
   const { pairId } = useProfile();
   const [settings, setSettings] = useState<TimerSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // タイマー動作中フラグと、動作中に届いた最新設定の保留用ref
+  const isTimerActiveRef = useRef(false);
+  const pendingSettingsRef = useRef<TimerSettings | null>(null);
+
+  // タイマーが動作していなければ即反映、動作中なら保留する
+  const applyIncomingSettings = (data: TimerSettings) => {
+    if (isTimerActiveRef.current) {
+      pendingSettingsRef.current = data;
+    } else {
+      pendingSettingsRef.current = null;
+      setSettings(data);
+    }
+  };
+
+  const notifyTimerActive = useCallback((active: boolean) => {
+    isTimerActiveRef.current = active;
+    // 動作が終わったタイミングで保留していた設定を反映する
+    if (!active && pendingSettingsRef.current) {
+      setSettings(pendingSettingsRef.current);
+      pendingSettingsRef.current = null;
+    }
+  }, []);
 
   const fetchSettings = async (isBackground = false) => {
     if (!pairId) {
@@ -55,7 +89,7 @@ export const TimerSettingsProvider = ({
       .maybeSingle();
 
     if (data && !error) {
-      setSettings(data as TimerSettings);
+      applyIncomingSettings(data as TimerSettings);
     } else if (!error) {
       // 行がまだ無いペアには初期値を作成しておく（どちらの立場でも作成可）
       const { data: created } = await supabase
@@ -63,7 +97,7 @@ export const TimerSettingsProvider = ({
         .insert({ pair_id: pairId, ...DEFAULT_TIMER_SETTINGS })
         .select()
         .single();
-      if (created) setSettings(created as TimerSettings);
+      if (created) applyIncomingSettings(created as TimerSettings);
     }
     setIsLoading(false);
   };
@@ -116,7 +150,7 @@ export const TimerSettingsProvider = ({
 
   return (
     <TimerSettingsContext.Provider
-      value={{ settings, isLoading, updateSettings }}
+      value={{ settings, isLoading, updateSettings, notifyTimerActive }}
     >
       {children}
     </TimerSettingsContext.Provider>

@@ -134,7 +134,7 @@ function SupporterSettingsPanel() {
 
         <div>
           <p className="text-xs font-semibold text-gray-500 mb-2">
-            いちご＝ポイントの付与タイミング
+            いちごの付与タイミング
           </p>
           <div className="flex flex-col gap-2">
             {timingOptions.map((opt) => (
@@ -169,7 +169,7 @@ function SupporterSettingsPanel() {
           </div>
           {current.points_timing === "on_finish" && (
             <p className="text-[11px] text-amber-500 mt-2">
-              「タイマー終了後」の場合、学習者が完了ボタンを押して確認モーダルで決定した時点でポイントが確定します。
+              「タイマー終了後」の場合、学習者が完了ボタンを押して確認モーダルで決定した時点でいちごが確定します。
             </p>
           )}
         </div>
@@ -297,7 +297,7 @@ function LearnerTimerPanel() {
         <div className="w-14 h-14 flex flex-col items-center justify-center">
           {pointsTiming === "on_finish" && pendingPoints > 0 && (
             <span className="text-[11px] font-bold text-amber-500 whitespace-nowrap">
-              未確定:{pendingPoints}
+              未確定:{pendingPoints}コ
             </span>
           )}
         </div>
@@ -326,7 +326,7 @@ function LearnerTimerPanel() {
           </div>
           {pointsTiming === "on_finish" && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">付与ポイント</span>
+              <span className="text-gray-400">付与いちご</span>
               <span className="font-bold text-amber-500">+{pendingPoints}</span>
             </div>
           )}

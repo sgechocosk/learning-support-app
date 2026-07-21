@@ -425,10 +425,10 @@ export const TaskForm = ({
               const val = e.target.value;
               setRewardPoints(val === "" ? "" : Number(val));
             }}
-            placeholder="獲得ポイント"
+            placeholder="獲得いちご"
             className="w-28 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
           />
-          <span className="text-sm font-bold text-sky-600">ポイント</span>
+          <span className="text-sm font-bold text-sky-600">いちご</span>
         </div>
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}

@@ -57,7 +57,7 @@ export default function Task() {
                 '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
             }}
           >
-            たまったポイント：{profile?.points ?? 0}pt
+            たまったいちご：{profile?.points ?? 0}コ
           </span>
         </div>
       )}

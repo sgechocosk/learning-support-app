@@ -214,10 +214,10 @@ export const RewardForm = ({
               const val = e.target.value;
               setRequiredPoints(val === "" ? "" : Number(val));
             }}
-            placeholder="必要ポイント"
+            placeholder="必要いちご"
             className="w-24 border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
           />
-          <span className="text-sm font-bold text-amber-600">ポイント</span>
+          <span className="text-sm font-bold text-amber-600">いちご</span>
         </div>
 
         <div className="flex flex-col gap-2 rounded-lg border border-amber-100 bg-amber-50/50 p-3">

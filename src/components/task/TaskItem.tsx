@@ -92,7 +92,7 @@ export const TaskItem = ({
     e.stopPropagation();
     if (canClaimPoints && !isAnimating.current) {
       triggerHaptic();
-      if (window.confirm("ポイントを受け取りますか？")) {
+      if (window.confirm("いちごを受け取りますか？")) {
         if (stubRef.current) {
           isAnimating.current = true;
           const stub = stubRef.current;
@@ -150,7 +150,7 @@ export const TaskItem = ({
         </span>
 
         <span className="flex items-center shrink-0 text-sky-500 text-sm font-black ml-auto">
-          +{task.reward_points}pt
+          +{task.reward_points}コ
         </span>
 
         {!task.is_completed && (
@@ -268,7 +268,7 @@ export const TaskItem = ({
                 GET!
               </span>
               <span className="text-sm sm:text-lg font-black leading-none">
-                +{task.reward_points}pt
+                +{task.reward_points}コ
               </span>
             </div>
           )}
@@ -304,7 +304,7 @@ export const TaskItem = ({
                       {task.reward_points}
                     </span>
                     <span className="text-[10px] sm:text-xs font-bold ml-0.5 mb-1 opacity-70">
-                      pt
+                      コ
                     </span>
                   </div>
 

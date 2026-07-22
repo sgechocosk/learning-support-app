@@ -32,7 +32,7 @@ export const TaskContext = createContext<TaskContextType | undefined>(
 );
 
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
-  const { pairId } = useProfile();
+  const { pairId, refreshProfile } = useProfile();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -142,7 +142,14 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     const target = tasks.find((t) => t.id === taskId);
     const rpcName = target?.is_completed ? "uncomplete_task" : "complete_task";
     const { error } = await supabase.rpc(rpcName, { task_id: taskId });
-    if (!error) await fetchTasks(true);
+    if (!error) {
+      // tasks.is_completed / total_completed_tasks（と即時付与設定の場合は
+      // total_points）はDB側トリガーで更新されるが、profiles側の変更は
+      // Realtimeの購読が届くまで画面に反映されない。redeemReward等と同様に
+      // ここで明示的にプロフィールを再取得し、Realtime到達前でも
+      // 確実に最新の値が表示されるようにする。
+      await Promise.all([fetchTasks(true), refreshProfile()]);
+    }
     return { error: error?.message ?? null };
   };
 
@@ -150,7 +157,11 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.rpc("claim_task_points", {
       task_id: taskId,
     });
-    if (!error) await fetchTasks(true);
+    if (!error) {
+      // total_points はこのRPCで加算される。Realtime到達を待たず
+      // ここで即座にプロフィールを再取得して確実に反映させる。
+      await Promise.all([fetchTasks(true), refreshProfile()]);
+    }
     return { error: error?.message ?? null };
   };
 

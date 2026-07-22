@@ -92,7 +92,7 @@ export const TaskItem = ({
     e.stopPropagation();
     if (canClaimPoints && !isAnimating.current) {
       triggerHaptic();
-      if (window.confirm("いちごを受け取りますか？")) {
+      if (window.confirm("タスクを完了していちごを受け取りますか？")) {
         if (stubRef.current) {
           isAnimating.current = true;
           const stub = stubRef.current;

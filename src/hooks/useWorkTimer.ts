@@ -84,7 +84,7 @@ const requestAwardPoints = async (amount: number): Promise<boolean> => {
 };
 
 export const useWorkTimer = () => {
-  const { profile, updateProfileState } = useProfile();
+  const { profile, updateProfileState, refreshProfile } = useProfile();
   const { settings, notifyTimerActive } = useTimerSettings();
 
   const intervalMinutes = settings?.interval_minutes ?? 5;
@@ -183,6 +183,10 @@ export const useWorkTimer = () => {
             total_points: profile.total_points + pending,
           });
         }
+        // ローカルの加算はあくまで即時表示用の楽観的更新。
+        // サーバー側の実際の値（トリガー計算結果）で必ず上書きし、
+        // 連続付与時の取りこぼしやズレが蓄積しないようにする。
+        await refreshProfile();
       }
       // 失敗時は awardedCount を進めない。strawberryCount /
       // awardedCount のどちらかが変化した際や、次の再試行タイミングで
@@ -294,6 +298,7 @@ export const useWorkTimer = () => {
             total_points: profile.total_points + pending,
           });
         }
+        await refreshProfile();
       }
     } else {
       // realtime設定でも、直前に未送信分が残っている可能性があるため

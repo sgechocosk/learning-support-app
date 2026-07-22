@@ -75,12 +75,12 @@ export const Overlay = ({
             {profile.role === "learner" && (
               <>
                 <div className="flex justify-between items-center py-2 border-b border-sky-50">
-                  <span className="text-sm text-sky-600">現在のポイント</span>
-                  <span className="font-bold">{profile.points} pt</span>
+                  <span className="text-sm text-sky-600">現在のいちご</span>
+                  <span className="font-bold">{profile.points} コ</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-sky-50">
-                  <span className="text-sm text-sky-600">累計ポイント</span>
-                  <span className="font-bold">{profile.total_points} pt</span>
+                  <span className="text-sm text-sky-600">累計いちご</span>
+                  <span className="font-bold">{profile.total_points} コ</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-sky-50">
                   <span className="text-sm text-sky-600">タスク完了数</span>

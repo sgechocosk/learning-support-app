@@ -1,13 +1,14 @@
 import { useState } from "react";
 import {
+  Icon,
   Pencil,
   Trash2,
   Gift,
   PackageX,
   Sparkles,
-  Coins,
   Share2,
 } from "lucide-react";
+import { strawberry } from "@lucide/lab";
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { useProfile } from "../../hooks/useProfile";
@@ -122,8 +123,8 @@ export const RewardItem = ({
           {thumbnail}
 
           <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-white bg-amber-400 shadow-sm shrink-0">
-            <Coins size={10} />
-            {reward.required_points}pt
+            <Icon iconNode={strawberry} size={10} />
+            {reward.required_points}コ
           </span>
 
           <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-slate-500 bg-slate-100 shrink-0">
@@ -208,12 +209,18 @@ export const RewardItem = ({
             : "cursor-default"
         }`}
       >
-        <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-sky-50 flex items-center justify-center">
+        <div
+          className={`relative aspect-square w-full overflow-hidden shrink-0 flex items-center justify-center ${
+            reward.image_url
+              ? "bg-white"
+              : "bg-gradient-to-br from-amber-50 to-sky-50"
+          }`}
+        >
           {reward.image_url ? (
             <img
               src={reward.image_url}
               alt={reward.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <Gift className="w-12 h-12 text-amber-300" />
@@ -254,7 +261,7 @@ export const RewardItem = ({
           <div className="mt-auto flex items-center justify-end gap-1.5 pt-1">
             {!isOutOfStock && !canAfford && (
               <span className="text-[10px] font-bold text-slate-300">
-                ポイント不足
+                いちご不足
               </span>
             )}
             <span
@@ -262,9 +269,9 @@ export const RewardItem = ({
                 canAfford ? "text-amber-500" : "text-slate-300"
               }`}
             >
-              <Coins size={14} />
+              <Icon iconNode={strawberry} size={14} />
               <span className="text-lg">{reward.required_points}</span>
-              <span className="text-[10px] font-bold opacity-70">pt</span>
+              <span className="text-[10px] font-bold opacity-70">コ</span>
             </span>
           </div>
         </div>
@@ -287,7 +294,7 @@ export const RewardItem = ({
           </h4>
           <p className="text-sm text-slate-500">
             <span className="font-black text-amber-500">
-              {reward.required_points}pt
+              {reward.required_points}コ
             </span>{" "}
             を消費します
           </p>

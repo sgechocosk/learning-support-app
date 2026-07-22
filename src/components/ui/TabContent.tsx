@@ -19,7 +19,7 @@ export const TabContent = forwardRef<HTMLElement, TabContentProps>(
       <section
         ref={ref}
         key={activeTab}
-        className={`h-full overflow-y-auto px-4 py-4 pb-24 ${slideClass}`}
+        className={`h-full overflow-y-auto px-4 py-4 pb-6 ${slideClass}`}
       >
         {children}
       </section>

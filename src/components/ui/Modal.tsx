@@ -20,7 +20,7 @@ export const Modal = ({
   onClose,
   children,
   contentClassName = "",
-  overlayClassName = "z-50",
+  overlayClassName = "z-10",
 }: ModalProps) => {
   useEffect(() => {
     if (!isOpen) return;

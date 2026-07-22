@@ -85,7 +85,7 @@ export default function Reward() {
                 '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
             }}
           >
-            たまったポイント：{profile?.points ?? 0}pt
+            たまったいちご：{profile?.points ?? 0}コ
           </span>
         </div>
       )}
@@ -129,7 +129,7 @@ export default function Reward() {
                 <span className="font-semibold truncate">{r.reward_title}</span>
                 <span className="flex items-center gap-2 shrink-0">
                   <span className="font-bold text-amber-500">
-                    -{r.required_points}pt
+                    -{r.required_points}コ
                   </span>
                   <span>
                     {new Date(r.redeemed_at).toLocaleDateString("ja-JP", {

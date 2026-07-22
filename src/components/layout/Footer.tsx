@@ -20,7 +20,7 @@ export const Footer = ({ activeTab, isMoving, onTabChange }: FooterProps) => {
   }, [isMoving]);
 
   return (
-    <footer className="flex-none relative pb-[calc(env(safe-area-inset-bottom)+20px)] drop-shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-20">
+    <footer className="flex-none relative pb-[calc(env(safe-area-inset-bottom)+20px)] drop-shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-30">
       <div className="absolute inset-0 bg-sky-300"></div>
       <div className="h-16 relative w-full max-w-md mx-auto flex">
         <div

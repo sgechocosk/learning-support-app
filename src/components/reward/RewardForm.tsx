@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Coins, Package, Eye, EyeOff } from "lucide-react";
+import { Icon, X, Plus, Package, Eye, EyeOff } from "lucide-react";
+import { strawberry } from '@lucide/lab';
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { NumberStepper } from "../ui/NumberStepper";
@@ -205,7 +206,7 @@ export const RewardForm = ({
         />
 
         <div className="flex items-center gap-2">
-          <Coins className="text-amber-400 shrink-0" size={20} />
+          <Icon iconNode={strawberry} className="text-amber-400 shrink-0" size={20} />
           <input
             type="number"
             min={0}
@@ -214,10 +215,10 @@ export const RewardForm = ({
               const val = e.target.value;
               setRequiredPoints(val === "" ? "" : Number(val));
             }}
-            placeholder="必要ポイント"
+            placeholder="必要いちご"
             className="w-24 border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
           />
-          <span className="text-sm font-bold text-amber-600">ポイント</span>
+          <span className="text-sm font-bold text-amber-600">コ</span>
         </div>
 
         <div className="flex flex-col gap-2 rounded-lg border border-amber-100 bg-amber-50/50 p-3">

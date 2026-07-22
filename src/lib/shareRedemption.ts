@@ -153,7 +153,7 @@ export const createRedemptionShareImage = async (
 
   // ポイントバッジ
   cursorY += 6;
-  const badgeText = `${requiredPoints}pt`;
+  const badgeText = `${requiredPoints}コ`;
   ctx.font = "bold 38px sans-serif";
   const badgeTextWidth = ctx.measureText(badgeText).width;
   const badgeW = badgeTextWidth + 80;

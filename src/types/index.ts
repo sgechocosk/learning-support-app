@@ -20,6 +20,14 @@ export interface Profile {
   created_at: string;
 }
 
+export interface Pair {
+  id: string;
+  supporter_id: string;
+  learner_id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface Category {
   id: string;
   pair_id: string;

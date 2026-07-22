@@ -6,9 +6,11 @@ interface ProfileContextType {
   profile: Profile | null;
   partnerName: string | null;
   pairId: string | null;
+  pairName: string | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   updateProfileState: (updates: Partial<Profile>) => void;
+  updatePairName: (name: string) => Promise<boolean>;
 }
 
 export const ProfileContext = createContext<ProfileContextType | undefined>(
@@ -19,6 +21,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [partnerName, setPartnerName] = useState<string | null>(null);
   const [pairId, setPairId] = useState<string | null>(null);
+  const [pairName, setPairName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fetchProfile = async (isBackground = false) => {
@@ -48,6 +51,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
 
         if (pairData) {
           setPairId(pairData.id);
+          setPairName(pairData.name);
           const partnerId =
             data.role === "learner"
               ? pairData.supporter_id
@@ -65,12 +69,15 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         setPairId(null);
+        setPairName(null);
         setProfile(null);
         setPartnerName(null);
       }
     } else {
       setProfile(null);
       setPartnerName(null);
+      setPairId(null);
+      setPairName(null);
     }
     setIsLoading(false);
   };
@@ -84,6 +91,8 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       } else if (event === "SIGNED_OUT") {
         setProfile(null);
         setPartnerName(null);
+        setPairId(null);
+        setPairName(null);
       }
     });
 
@@ -116,6 +125,33 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [profile?.id]);
 
+  useEffect(() => {
+    if (!pairId) return;
+
+    const channel = supabase
+      .channel(`pair-${pairId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pairs",
+          filter: `id=eq.${pairId}`,
+        },
+        (payload) => {
+          const updated = payload.new as { name?: string };
+          if (updated?.name) {
+            setPairName(updated.name);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pairId]);
+
   const refreshProfile = async () => {
     await fetchProfile(true);
   };
@@ -124,15 +160,36 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setProfile((prev) => (prev ? { ...prev, ...updates } : null));
   };
 
+  const updatePairName = async (name: string) => {
+    if (!pairId) return false;
+
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+
+    const { error } = await supabase
+      .from("pairs")
+      .update({ name: trimmed })
+      .eq("id", pairId);
+
+    if (error) {
+      return false;
+    }
+
+    setPairName(trimmed);
+    return true;
+  };
+
   return (
     <ProfileContext.Provider
       value={{
         profile,
         partnerName,
         pairId,
+        pairName,
         isLoading,
         refreshProfile,
         updateProfileState,
+        updatePairName,
       }}
     >
       {children}

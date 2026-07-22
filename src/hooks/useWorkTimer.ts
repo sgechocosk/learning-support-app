@@ -60,17 +60,26 @@ const saveState = (state: StoredSessionState) => {
   } catch {}
 };
 
-const requestAwardPoints = async (amount: number) => {
-  if (amount <= 0) return;
+/**
+ * サーバー（プロフィールDB）へのいちご付与リクエスト。
+ * 成功したかどうかを boolean で返し、呼び出し側は成功時のみ
+ * ローカルの「付与済みカウント」を進める。失敗時はローカル状態を
+ * 変更しないことで、再試行によって取りこぼし（データの紛失）を防ぐ。
+ */
+const requestAwardPoints = async (amount: number): Promise<boolean> => {
+  if (amount <= 0) return true;
   try {
     const { error } = await supabase.rpc("award_timer_points", {
-      points: amount,
+      p_points: amount,
     });
     if (error) {
       console.warn("Error awarding points", error);
+      return false;
     }
+    return true;
   } catch (e) {
     console.warn("Error awarding points", e);
+    return false;
   }
 };
 
@@ -95,6 +104,7 @@ export const useWorkTimer = () => {
   );
   const [awardedCount, setAwardedCount] = useState(initial.awardedCount);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [isSyncingPoints, setIsSyncingPoints] = useState(false);
 
   const isRunning = runningSince !== null;
 
@@ -116,6 +126,9 @@ export const useWorkTimer = () => {
     strawberryCount,
     awardedCount,
   };
+
+  // 進行中のDB同期リクエストが重複発火しないようにするフラグ
+  const isSyncingRef = useRef(false);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -144,21 +157,67 @@ export const useWorkTimer = () => {
     }
   }, [lifetimeElapsedMs, intervalMs, strawberryCount]);
 
-  useEffect(() => {
+  // 「リアルタイム」設定の場合、画面上のいちごの数（strawberryCount）が
+  // 増えるたびに、その差分を即座にDBへ反映する。
+  // 反映が成功した場合のみ awardedCount を進めることで、通信エラー等で
+  // 更新が失敗しても「付与済み扱いなのにDBには残っていない」という
+  // 予期しないデータの紛失を防ぐ（次のトリガーで自動的に再試行される）。
+  const syncRealtimePoints = useCallback(async () => {
     if (pointsTiming !== "realtime") return;
-    const pending = strawberryCount - awardedCount;
+    if (isSyncingRef.current) return;
+
+    const pending =
+      latest.current.strawberryCount - latest.current.awardedCount;
     if (pending <= 0) return;
 
-    setAwardedCount(strawberryCount);
-    if (profile) {
-      updateProfileState({
-        points: profile.points + pending,
-        total_points: profile.total_points + pending,
-      });
+    isSyncingRef.current = true;
+    setIsSyncingPoints(true);
+    const targetCount = latest.current.strawberryCount;
+    try {
+      const ok = await requestAwardPoints(pending);
+      if (ok) {
+        setAwardedCount((prev) => Math.max(prev, targetCount));
+        if (profile) {
+          updateProfileState({
+            points: profile.points + pending,
+            total_points: profile.total_points + pending,
+          });
+        }
+      }
+      // 失敗時は awardedCount を進めない。strawberryCount /
+      // awardedCount のどちらかが変化した際や、次の再試行タイミングで
+      // 再度この関数が呼ばれ、未送信分が送られる。
+    } finally {
+      isSyncingRef.current = false;
+      setIsSyncingPoints(false);
     }
-    requestAwardPoints(pending);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pointsTiming, strawberryCount, awardedCount]);
+  }, [pointsTiming, profile]);
+
+  // 画面上の数字（strawberryCount）が変化した「その瞬間」に同期を試みる
+  useEffect(() => {
+    syncRealtimePoints();
+  }, [pointsTiming, strawberryCount, awardedCount, syncRealtimePoints]);
+
+  // 通信失敗時の取りこぼし対策: オンライン復帰時・タブがフォアグラウンドに
+  // 戻った時・一定間隔ごとに、未送信分が残っていれば再送を試みる。
+  useEffect(() => {
+    if (pointsTiming !== "realtime") return;
+
+    const retry = () => {
+      syncRealtimePoints();
+    };
+
+    window.addEventListener("online", retry);
+    document.addEventListener("visibilitychange", retry);
+    const intervalId = setInterval(retry, 15000);
+
+    return () => {
+      window.removeEventListener("online", retry);
+      document.removeEventListener("visibilitychange", retry);
+      clearInterval(intervalId);
+    };
+  }, [pointsTiming, syncRealtimePoints]);
 
   useEffect(() => {
     saveState({
@@ -189,7 +248,15 @@ export const useWorkTimer = () => {
     }
   }, []);
 
-  const completeSession = useCallback(() => {
+  /**
+   * 学習者が完了ボタン（確認モーダルの「完了する」）を押した瞬間に呼ばれる。
+   * 「タイマー終了後にまとめて付与」設定の場合はここで初めてDBへの
+   * 付与リクエストを送る。DBへの反映が確認できた場合にのみローカルの
+   * セッション状態をリセットする。反映に失敗した場合はセッションを
+   * リセットせず、いちごを失わないようにして呼び出し元へ失敗を伝える
+   * （呼び出し元でエラー表示・再試行が可能）。
+   */
+  const completeSession = useCallback(async (): Promise<boolean> => {
     const since = latest.current.runningSince;
     const finalAccumulated =
       latest.current.accumulatedMs +
@@ -199,17 +266,41 @@ export const useWorkTimer = () => {
       const finalStrawberries = Math.floor(
         (latest.current.priorLifetimeMs + finalAccumulated) / intervalMs,
       );
-      const pending =
-        Math.max(finalStrawberries, latest.current.strawberryCount) -
-        latest.current.awardedCount;
+      const finalCount = Math.max(
+        finalStrawberries,
+        latest.current.strawberryCount,
+      );
+      const pending = finalCount - latest.current.awardedCount;
+
       if (pending > 0) {
+        setIsSyncingPoints(true);
+        let ok: boolean;
+        try {
+          ok = await requestAwardPoints(pending);
+        } finally {
+          setIsSyncingPoints(false);
+        }
+
+        if (!ok) {
+          // DBへの反映が確認できるまでセッションは維持し、
+          // 貯めたいちごが失われないようにする。
+          return false;
+        }
+
+        setAwardedCount(finalCount);
         if (profile) {
           updateProfileState({
             points: profile.points + pending,
             total_points: profile.total_points + pending,
           });
         }
-        requestAwardPoints(pending);
+      }
+    } else {
+      // realtime設定でも、直前に未送信分が残っている可能性があるため
+      // 念のため最後にもう一度同期を試みる。
+      await syncRealtimePoints();
+      if (latest.current.strawberryCount > latest.current.awardedCount) {
+        return false;
       }
     }
 
@@ -218,8 +309,9 @@ export const useWorkTimer = () => {
     setPriorLifetimeMs(0);
     setStrawberryCount(0);
     setAwardedCount(0);
+    return true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pointsTiming, intervalMs, profile]);
+  }, [pointsTiming, intervalMs, profile, syncRealtimePoints]);
 
   useEffect(() => {
     const handleHide = () => {
@@ -286,6 +378,7 @@ export const useWorkTimer = () => {
     awardedCount,
     pendingPoints,
     msUntilNextStrawberry,
+    isSyncingPoints,
     start,
     stop,
     completeSession,

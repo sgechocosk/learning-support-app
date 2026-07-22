@@ -198,12 +198,14 @@ function LearnerTimerPanel() {
     strawberryCount,
     pendingPoints,
     msUntilNextStrawberry,
+    isSyncingPoints,
     start,
     stop,
     completeSession,
   } = useWorkTimer();
 
   const [showComplete, setShowComplete] = useState(false);
+  const [completeError, setCompleteError] = useState(false);
   const wasRunningBeforeCompleteRef = useRef(false);
 
   const hasProgress = elapsedMs > 0 || strawberryCount > 0;
@@ -222,21 +224,30 @@ function LearnerTimerPanel() {
     if (!hasProgress) return;
     wasRunningBeforeCompleteRef.current = isRunning;
     if (isRunning) stop();
+    setCompleteError(false);
     setShowComplete(true);
   };
 
   const cancelComplete = () => {
     triggerHaptic();
     setShowComplete(false);
+    setCompleteError(false);
     if (wasRunningBeforeCompleteRef.current) {
       start();
     }
   };
 
-  const confirmComplete = () => {
+  const confirmComplete = async () => {
     triggerHaptic();
-    completeSession();
-    setShowComplete(false);
+    setCompleteError(false);
+    const ok = await completeSession();
+    if (ok) {
+      setShowComplete(false);
+    } else {
+      // DBへの反映が確認できなかった場合はいちごを失わないよう
+      // モーダルを閉じずに再試行できるようにする。
+      setCompleteError(true);
+    }
   };
 
   return (
@@ -331,20 +342,28 @@ function LearnerTimerPanel() {
           )}
         </div>
 
+        {completeError && (
+          <p className="text-[11px] text-rose-500 mb-3 -mt-2">
+            通信エラーのため、いちごを反映できませんでした。もう一度お試しください。
+          </p>
+        )}
+
         <div className="flex gap-2">
           <button
             type="button"
             onClick={cancelComplete}
-            className="flex-1 py-2.5 rounded-full bg-gray-100 text-gray-600 font-bold text-sm active:scale-95 transition-transform"
+            disabled={isSyncingPoints}
+            className="flex-1 py-2.5 rounded-full bg-gray-100 text-gray-600 font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
           >
             キャンセル
           </button>
           <button
             type="button"
             onClick={confirmComplete}
-            className="flex-1 py-2.5 rounded-full bg-emerald-400 text-white font-bold text-sm active:scale-95 transition-transform"
+            disabled={isSyncingPoints}
+            className="flex-1 py-2.5 rounded-full bg-emerald-400 text-white font-bold text-sm active:scale-95 transition-transform disabled:opacity-50"
           >
-            完了する
+            {isSyncingPoints ? "反映中…" : "完了する"}
           </button>
         </div>
       </Modal>

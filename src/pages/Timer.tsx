@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Play, Pause, CheckCircle2, Heart } from "lucide-react";
 import HerbariumFlask from "../components/timer/HerbariumFlask";
+import { useFitScale } from "../hooks/useFitScale";
 import { NumberStepper } from "../components/ui/NumberStepper";
 import { ToggleSwitch } from "../components/ui/ToggleSwitch";
 import { Modal } from "../components/ui/Modal";
@@ -210,6 +211,15 @@ function LearnerTimerPanel() {
 
   const hasProgress = elapsedMs > 0 || strawberryCount > 0;
 
+  const FLASK_WIDTH = 340;
+  const FLASK_HEIGHT = 450;
+  const { containerRef: flaskContainerRef, scale: flaskScale } = useFitScale({
+    targetWidth: FLASK_WIDTH,
+    targetHeight: FLASK_HEIGHT,
+    minScale: 0.62,
+    maxScale: 1,
+  });
+
   const handleToggle = () => {
     triggerHaptic();
     if (isRunning) {
@@ -244,15 +254,13 @@ function LearnerTimerPanel() {
     if (ok) {
       setShowComplete(false);
     } else {
-      // DBへの反映が確認できなかった場合はいちごを失わないよう
-      // モーダルを閉じずに再試行できるようにする。
       setCompleteError(true);
     }
   };
 
   return (
-    <div className="w-full h-full max-w-md mx-auto flex flex-col items-center justify-between pt-2 pb-6 px-4">
-      <div className="flex flex-col items-center gap-1 mt-4">
+    <div className="w-full h-full max-w-4xl mx-auto px-4 pt-3 pb-0 grid grid-cols-1 grid-rows-[auto_1fr_auto] landscape:grid-cols-2 landscape:grid-rows-[1fr_1fr] gap-4 min-h-0">
+      <div className="flex flex-col items-center justify-center landscape:col-start-1 landscape:row-start-1 landscape:self-end landscape:pb-4">
         <p className="text-5xl font-mono font-bold text-sky-600 tabular-nums tracking-tight">
           {formatDuration(elapsedMs)}
         </p>
@@ -266,22 +274,34 @@ function LearnerTimerPanel() {
         )}
       </div>
 
-      <div className="flex-1 w-full flex items-center justify-center min-h-0 my-4">
-        <HerbariumFlask
-          count={strawberryCount}
-          intervalMinutes={intervalMinutes}
-          glassColorHex="#fb7185"
-          width={320}
-          height={400}
-        />
+      <div
+        ref={flaskContainerRef}
+        className="w-full h-full flex items-center justify-center min-h-0 landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 overflow-hidden"
+      >
+        <div
+          className="shrink-0 flex items-center justify-center origin-center transition-transform"
+          style={{
+            width: FLASK_WIDTH,
+            height: FLASK_HEIGHT,
+            transform: `scale(${flaskScale})`,
+          }}
+        >
+          <HerbariumFlask
+            count={strawberryCount}
+            intervalMinutes={intervalMinutes}
+            glassColorHex="#fb7185"
+            width={FLASK_WIDTH}
+            height={FLASK_HEIGHT}
+          />
+        </div>
       </div>
 
-      <div className="w-full flex items-center justify-center gap-6">
+      <div className="w-full flex items-center justify-center gap-6 landscape:col-start-1 landscape:row-start-2 landscape:self-start landscape:pt-4">
         <button
           type="button"
           onClick={handleCompleteRequest}
           disabled={!hasProgress}
-          className="w-14 h-14 flex items-center justify-center rounded-full bg-white border border-gray-200 text-emerald-400 shadow-sm active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100"
+          className="w-14 h-14 flex items-center justify-center rounded-full bg-white border border-gray-200 text-emerald-400 shadow-sm active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100 shrink-0"
           aria-label="完了"
         >
           <CheckCircle2 size={24} />
@@ -290,7 +310,7 @@ function LearnerTimerPanel() {
         <button
           type="button"
           onClick={handleToggle}
-          className={`w-20 h-20 flex items-center justify-center rounded-full shadow-lg text-white active:scale-95 transition-transform ${
+          className={`w-20 h-20 flex items-center justify-center rounded-full shadow-lg text-white active:scale-95 transition-transform shrink-0 ${
             isRunning
               ? "bg-amber-400 active:bg-amber-500"
               : "bg-sky-400 active:bg-sky-500"
@@ -304,7 +324,7 @@ function LearnerTimerPanel() {
           )}
         </button>
 
-        <div className="w-14 h-14 flex flex-col items-center justify-center">
+        <div className="w-14 h-14 flex flex-col items-center justify-center shrink-0">
           {pointsTiming === "on_finish" && pendingPoints > 0 && (
             <span className="text-[11px] font-bold text-amber-500 whitespace-nowrap">
               未確定:{pendingPoints}コ

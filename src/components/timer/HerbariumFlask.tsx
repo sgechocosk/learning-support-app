@@ -49,8 +49,8 @@ export default function HerbariumFlask({
   count,
   intervalMinutes,
   glassColorHex = "#fb7185",
-  width = 320,
-  height = 420,
+  width = 340, // 左右の余白を削るため400→340に変更
+  height = 450, // 高さも無駄な余白を削るため500→450に変更
 }: HerbariumFlaskProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -113,8 +113,8 @@ export default function HerbariumFlask({
     });
 
     const cx = width / 2;
-    const cy = height - (height >= 380 ? 210 : 180);
-    const R = Math.min(width, height) * 0.35;
+    const R = 150;
+    const cy = height - R - 20;
 
     const thickness = 14;
     const baseRadius = width < 280 ? 10 : 14;
@@ -173,9 +173,7 @@ export default function HerbariumFlask({
 
     const neckTop = cy - R * Math.cos(theta) - neckHeight;
 
-    // --- 初期配置処理: すでに獲得済みのいちごを瓶の中に直接配置 ---
     for (let i = 0; i < countRef.current; i++) {
-      // 瓶の内部に収まるように極座標でランダム配置
       const angle = Math.random() * Math.PI * 2;
       const distance = Math.random() * (R * 0.7);
       const dropX = cx + Math.cos(angle) * distance;
@@ -196,11 +194,9 @@ export default function HerbariumFlask({
       spawnedCountRef.current += 1;
     }
 
-    // 描画開始前に物理演算を少し進め、重力を適用して自然に積み重ねる
     for (let i = 0; i < 90; i++) {
       Engine.update(engine, 1000 / 60);
     }
-    // -------------------------------------------------------------
 
     const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {

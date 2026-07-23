@@ -28,9 +28,11 @@ export default function AcceptInvite({ token, onCompleted }: Props) {
 
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase
+      const { data: rawData, error } = await supabase
         .rpc("get_invitation_by_token", { p_token: token })
         .maybeSingle();
+
+      const data = rawData as InvitationInfo | null;
 
       if (error || !data) {
         setLoadError(
@@ -43,7 +45,7 @@ export default function AcceptInvite({ token, onCompleted }: Props) {
           "この招待の有効期限が切れています。支援者に再送を依頼してください。",
         );
       } else {
-        setInvitation(data as InvitationInfo);
+        setInvitation(data);
       }
       setLoadingInvite(false);
     };

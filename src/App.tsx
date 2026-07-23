@@ -15,6 +15,8 @@ import Calendar from "./pages/Calendar";
 import Task from "./pages/Task";
 import Timer from "./pages/Timer";
 import Reward from "./pages/Reward";
+import InvitePartner from "./pages/InvitePartner";
+import AcceptInvite from "./pages/AcceptInvite";
 
 // 作成した ProfileProvider をインポート
 import { ProfileProvider } from "./contexts/ProfileContext";
@@ -22,6 +24,28 @@ import { CategoryProvider } from "./contexts/CategoryContext";
 import { TaskProvider } from "./contexts/TaskContext";
 import { RewardProvider } from "./contexts/RewardContext";
 import { TimerSettingsProvider } from "./contexts/TimerSettingsContext";
+import { useProfile } from "./hooks/useProfile";
+
+// ログイン後の画面。
+// 支援者(role: "supporter")でまだペアが存在しない場合は、
+// 学習者を招待する画面を表示する。
+function AuthenticatedGate({ children }: { children: React.ReactNode }) {
+  const { profile, pairId, isLoading } = useProfile();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-sky-300">
+        <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (profile?.role === "supporter" && !pairId) {
+    return <InvitePartner />;
+  }
+
+  return <>{children}</>;
+}
 
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
@@ -98,6 +122,27 @@ export default function App() {
     setMessage(`${TABS[activeTab].label}のメインボタンがタップされました`);
   };
 
+  const inviteToken = new URLSearchParams(window.location.search).get(
+    "invite",
+  );
+
+  if (inviteToken) {
+    return (
+      <AcceptInvite
+        token={inviteToken}
+        onCompleted={() => {
+          // URLからinviteパラメータを取り除き、通常のアプリ画面へ
+          const url = new URL(window.location.href);
+          url.searchParams.delete("invite");
+          window.history.replaceState({}, "", url.toString());
+          setIsAuthenticated(true);
+          setActiveTab(0);
+          sessionStorage.setItem("active_tab", "0");
+        }}
+      />
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <Auth
@@ -119,6 +164,7 @@ export default function App() {
         <TaskProvider>
           <RewardProvider>
             <TimerSettingsProvider>
+              <AuthenticatedGate>
               <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
                 <style>{`
           :root {
@@ -178,6 +224,7 @@ export default function App() {
                   onClose={closeOverlay}
                 />
               </div>
+              </AuthenticatedGate>
             </TimerSettingsProvider>
           </RewardProvider>
         </TaskProvider>

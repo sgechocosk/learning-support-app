@@ -115,7 +115,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateTask: TaskContextType["updateTask"] = async (taskId, updates) => {
-    const payload: Record<string, unknown> = {};
+    const payload: {
+      title?: string;
+      category_id?: string | null;
+      reward_points?: number;
+      scheduled_at?: string | null;
+    } = {};
+
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.categoryId !== undefined)
       payload.category_id = updates.categoryId;
@@ -128,6 +134,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       .from("tasks")
       .update(payload)
       .eq("id", taskId);
+
     if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
   };

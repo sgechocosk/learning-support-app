@@ -176,7 +176,16 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
     rewardId,
     updates,
   ) => {
-    const payload: Record<string, unknown> = {};
+    const payload: {
+      title?: string;
+      description?: string | null;
+      required_points?: number;
+      total_quantity?: number | null;
+      remaining_quantity?: number | null;
+      image_url?: string | null;
+      is_active?: boolean;
+    } = {};
+
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.description !== undefined)
       payload.description = updates.description;
@@ -193,6 +202,7 @@ export const RewardProvider = ({ children }: { children: ReactNode }) => {
       .from("rewards")
       .update(payload)
       .eq("id", rewardId);
+
     if (!error) await fetchRewards(true);
     return { error: error?.message ?? null };
   };

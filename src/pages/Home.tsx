@@ -1,63 +1,41 @@
-import type { TabInfo } from "../types";
-
-interface HomeProps {
-  currentTabInfo: TabInfo;
-  message: string;
-  onMainActionClick: () => void;
-}
-
-export default function Home({
-  currentTabInfo,
-  message,
-  onMainActionClick,
-}: HomeProps) {
+export default function Home() {
   return (
-    <div className="w-full max-w-5xl mx-auto">
-      <div className="sticky top-0 bg-white p-4 rounded-xl shadow-md mb-8 z-10">
-        <p className="text-center text-sm text-gray-500 font-bold mb-1">
-          {currentTabInfo.label}画面
+    <div className="flex flex-col items-center justify-center h-full w-full p-4">
+      <div className="flex flex-col items-center justify-center p-8 bg-white border-2 border-dashed border-sky-200 rounded-3xl shadow-sm w-full max-w-sm">
+        <div className="text-5xl mb-4 animate-bounce">🏠</div>
+        <h1 className="text-xl font-bold text-sky-600 mb-2">ホーム</h1>
+        <p className="text-sm text-sky-600/70 font-medium bg-sky-50 px-4 py-2 rounded-full mb-6">
+          🚧 現在、工事中です 🚧
         </p>
-        <p className="text-center text-xs text-gray-400 mb-2 border-b pb-2">
-          アクション結果
-        </p>
-        <p className="text-center font-bold text-blue-600 text-lg">{message}</p>
-      </div>
 
-      <div className="flex flex-col gap-4 mb-8">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={`top-home-${i}`}
-            className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 flex gap-4"
-          >
-            <div className="w-12 h-12 rounded-full bg-gray-200 flex-none"></div>
-            <div className="flex-1">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-center my-8">
-        <button
-          onClick={onMainActionClick}
-          className="px-8 py-4 bg-sky-400 text-white font-bold rounded-full shadow-lg transform transition-transform duration-100 active:scale-95 active:bg-sky-500 w-full max-w-xs text-lg flex items-center justify-center gap-2"
-        >
-          メインアクション
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={`bottom-home-${i}`}
-            className="p-6 bg-white rounded-xl shadow-sm border border-gray-100"
-          >
-            <div className="h-3 bg-gray-200 rounded w-full mb-3"></div>
-            <div className="h-3 bg-gray-200 rounded w-5/6 mb-3"></div>
-            <div className="h-3 bg-gray-200 rounded w-4/6"></div>
-          </div>
-        ))}
+        <div className="w-full">
+          <ul className="space-y-4 text-sm text-sky-700 bg-sky-50/50 p-5 rounded-2xl">
+            <li>
+              <div className="font-bold flex items-center gap-2 mb-1">
+                <span className="text-base">・</span> タスク
+              </div>
+              <div className="text-xs text-sky-600/80 pl-5">
+                やるべきことを完了していちごゲット！
+              </div>
+            </li>
+            <li>
+              <div className="font-bold flex items-center gap-2 mb-1">
+                <span className="text-base">・</span> タイマー
+              </div>
+              <div className="text-xs text-sky-600/80 pl-5">
+                集中した時間でいちごゲット！
+              </div>
+            </li>
+            <li>
+              <div className="font-bold flex items-center gap-2 mb-1">
+                <span className="text-base">・</span> ごほうび
+              </div>
+              <div className="text-xs text-sky-600/80 pl-5">
+                貯めたいちごでごほうびをゲット！
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

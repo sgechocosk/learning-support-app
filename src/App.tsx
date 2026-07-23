@@ -6,7 +6,6 @@ import { Header } from "./components/layout/Header";
 import { Footer } from "./components/layout/Footer";
 import { Overlay } from "./components/layout/Overlay";
 import { TabContent } from "./components/ui/TabContent";
-import { TABS } from "./constants/tabs";
 import type { OverlayType } from "./types";
 import "./index.css";
 
@@ -54,7 +53,6 @@ export default function App() {
   const initialTab = Number(sessionStorage.getItem("active_tab") || 0);
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  const [message, setMessage] = useState("ボタンをタップしてください");
   const [slideDirection, setSlideDirection] = useState("none");
   const [isMoving, setIsMoving] = useState(false);
 
@@ -89,8 +87,6 @@ export default function App() {
     setActiveTab(newTabIndex);
     sessionStorage.setItem("active_tab", String(newTabIndex));
 
-    setMessage(`フッター: ${TABS[newTabIndex].label}がタップされました`);
-
     setTimeout(() => setIsMoving(false), 150);
   };
 
@@ -117,14 +113,7 @@ export default function App() {
     }, 450);
   };
 
-  const handleMainActionClick = () => {
-    triggerHaptic();
-    setMessage(`${TABS[activeTab].label}のメインボタンがタップされました`);
-  };
-
-  const inviteToken = new URLSearchParams(window.location.search).get(
-    "invite",
-  );
+  const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
   if (inviteToken) {
     return (
@@ -165,8 +154,8 @@ export default function App() {
           <RewardProvider>
             <TimerSettingsProvider>
               <AuthenticatedGate>
-              <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-                <style>{`
+                <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+                  <style>{`
           :root {
             --click-x: ${clickPos.x}px;
             --click-y: ${clickPos.y}px;
@@ -181,49 +170,43 @@ export default function App() {
           .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
         `}</style>
 
-                <Header onOpenOverlay={openOverlay} />
+                  <Header onOpenOverlay={openOverlay} />
 
-                <div className="flex-1 overflow-hidden relative bg-gray-50">
-                  <TabContent
-                    ref={scrollContainerRef}
-                    activeTab={activeTab}
-                    slideDirection={slideDirection}
-                  >
-                    {activeTab === 0 && (
-                      <Home
-                        currentTabInfo={TABS[activeTab]}
-                        message={message}
-                        onMainActionClick={handleMainActionClick}
-                      />
-                    )}
-                    {activeTab === 1 && <Calendar />}
-                    {activeTab === 2 && <Task />}
-                    {activeTab === 3 && <Timer />}
-                    {activeTab === 4 && <Reward />}
-                  </TabContent>
+                  <div className="flex-1 overflow-hidden relative bg-gray-50">
+                    <TabContent
+                      ref={scrollContainerRef}
+                      activeTab={activeTab}
+                      slideDirection={slideDirection}
+                    >
+                      {activeTab === 0 && <Home />}
+                      {activeTab === 1 && <Calendar />}
+                      {activeTab === 2 && <Task />}
+                      {activeTab === 3 && <Timer />}
+                      {activeTab === 4 && <Reward />}
+                    </TabContent>
 
-                  {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
+                    {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
                     オーバーレイを表示するためのポータルルート。
                     中身が無い時はクリックを透過させ、下のコンテンツを操作可能にする。 */}
-                  <div
-                    id="modal-portal-root"
-                    className="absolute inset-0 pointer-events-none z-10"
+                    <div
+                      id="modal-portal-root"
+                      className="absolute inset-0 pointer-events-none z-10"
+                    />
+                  </div>
+
+                  <Footer
+                    activeTab={activeTab}
+                    isMoving={isMoving}
+                    onTabChange={handleTabChange}
+                  />
+
+                  <Overlay
+                    type={overlayType}
+                    isClosing={isOverlayClosing}
+                    lastSignInAt={lastSignInAt}
+                    onClose={closeOverlay}
                   />
                 </div>
-
-                <Footer
-                  activeTab={activeTab}
-                  isMoving={isMoving}
-                  onTabChange={handleTabChange}
-                />
-
-                <Overlay
-                  type={overlayType}
-                  isClosing={isOverlayClosing}
-                  lastSignInAt={lastSignInAt}
-                  onClose={closeOverlay}
-                />
-              </div>
               </AuthenticatedGate>
             </TimerSettingsProvider>
           </RewardProvider>

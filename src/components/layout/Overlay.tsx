@@ -91,17 +91,6 @@ export const Overlay = ({
               </>
             )}
 
-            <div
-              className={`flex justify-between items-center py-2 ${
-                partnerName ? "border-b border-sky-50" : ""
-              }`}
-            >
-              <span className="text-sm text-sky-600">ロール</span>
-              <span className="font-bold">
-                {profile.role === "supporter" ? "サポーター" : "学習者"}
-              </span>
-            </div>
-
             {partnerName && (
               <div className="flex justify-between items-center py-2">
                 <span className="text-sm text-sky-600">ペアの相手</span>
@@ -117,7 +106,7 @@ export const Overlay = ({
               ? lastSignInAt
                 ? `最終ログイン: ${lastSignInAt}`
                 : ""
-              : "最新の通知やメッセージを確認する画面のテンプレートです。"}
+              : "最新の通知やメッセージを確認する画面です。"}
           </p>
           {type === "profile" && (
             <button

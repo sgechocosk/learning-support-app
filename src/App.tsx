@@ -23,6 +23,7 @@ import { CategoryProvider } from "./contexts/CategoryContext";
 import { TaskProvider } from "./contexts/TaskContext";
 import { RewardProvider } from "./contexts/RewardContext";
 import { TimerSettingsProvider } from "./contexts/TimerSettingsContext";
+import { PointEventsProvider } from "./contexts/PointEventsContext";
 import { useProfile } from "./hooks/useProfile";
 
 // ログイン後の画面。
@@ -151,6 +152,7 @@ export default function App() {
     <ProfileProvider>
       <CategoryProvider>
         <TaskProvider>
+          <PointEventsProvider>
           <RewardProvider>
             <TimerSettingsProvider>
               <AuthenticatedGate>
@@ -210,6 +212,7 @@ export default function App() {
               </AuthenticatedGate>
             </TimerSettingsProvider>
           </RewardProvider>
+          </PointEventsProvider>
         </TaskProvider>
       </CategoryProvider>
     </ProfileProvider>

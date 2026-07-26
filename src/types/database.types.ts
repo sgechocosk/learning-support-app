@@ -153,6 +153,61 @@ export type Database = {
         };
         Relationships: [];
       };
+      point_events: {
+        Row: {
+          id: string;
+          pair_id: string;
+          learner_id: string;
+          source: string;
+          task_id: string | null;
+          amount: number;
+          created_at: string;
+          jst_date: string;
+        };
+        Insert: {
+          id?: string;
+          pair_id: string;
+          learner_id: string;
+          source: string;
+          task_id?: string | null;
+          amount: number;
+          created_at?: string;
+          jst_date?: string;
+        };
+        Update: {
+          id?: string;
+          pair_id?: string;
+          learner_id?: string;
+          source?: string;
+          task_id?: string | null;
+          amount?: number;
+          created_at?: string;
+          jst_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "point_events_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_events_learner_id_fkey";
+            columns: ["learner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_events_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reward_redemptions: {
         Row: {
           id: string;
@@ -347,6 +402,7 @@ export type Database = {
     };
     Functions: {
       award_timer_points: { Args: { p_points: number }; Returns: undefined };
+      get_current_streak: { Args: { p_pair_id: string }; Returns: number };
       claim_task_points: { Args: { task_id: string }; Returns: undefined };
       complete_task: { Args: { task_id: string }; Returns: undefined };
       get_invitation_by_token: {

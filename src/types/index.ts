@@ -81,3 +81,14 @@ export interface Task {
   created_at: string;
   categories?: Category | null;
 }
+
+export interface PointEvent {
+  id: string;
+  pair_id: string;
+  learner_id: string;
+  source: "task" | "timer";
+  task_id: string | null;
+  amount: number;
+  created_at: string;
+  jst_date: string; // "YYYY-MM-DD"（DBの date 型。日本時刻午前4時始まりの日付）
+}

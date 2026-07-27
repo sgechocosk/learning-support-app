@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useProfile } from "../hooks/useProfile";
 import { useTask } from "../hooks/useTask";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
@@ -28,6 +28,21 @@ export default function Task() {
     });
 
   const isSupporter = profile?.role === "supporter";
+
+  // タスク画面には「2週間後」よりも前のタスクのみ表示する（完了済みも含む）。
+  // 予定日未設定のタスクは対象外として常に表示する。
+  const visibleTasks = useMemo(() => {
+    const twoWeeksLater = new Date();
+    twoWeeksLater.setHours(0, 0, 0, 0);
+    twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+
+    if (isSupporter) return tasks;
+
+    return tasks.filter((task) => {
+      if (!task.scheduled_at) return true;
+      return new Date(task.scheduled_at).getTime() < twoWeeksLater.getTime();
+    });
+  }, [tasks, isSupporter]);
 
   const handleSubmit = (input: Parameters<typeof createTask>[0]) => {
     if (editingTask) {
@@ -72,7 +87,7 @@ export default function Task() {
         />
       )}
       <TaskList
-        tasks={tasks}
+        tasks={visibleTasks}
         isLoading={isLoading}
         isSupporter={isSupporter}
         onComplete={completeTask}

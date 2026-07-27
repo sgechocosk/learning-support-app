@@ -8,9 +8,18 @@ import {
   CheckCircle2,
   Circle,
   Gift,
+  EyeOff,
 } from "lucide-react";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
+
+const isHiddenForLearner = (scheduledAt: string | null | undefined) => {
+  if (!scheduledAt) return false;
+  const twoWeeksLater = new Date();
+  twoWeeksLater.setHours(0, 0, 0, 0);
+  twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+  return new Date(scheduledAt).getTime() >= twoWeeksLater.getTime();
+};
 
 const ANIMATION_STYLE = `
   @keyframes peel-top {
@@ -126,12 +135,20 @@ export const TaskItem = ({
   };
 
   if (isSupporter) {
+    const isHidden = isHiddenForLearner(task.scheduled_at);
+
     return (
       <div
-        className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl border-2 border-slate-100 shadow-sm transition-all ${
-          task.is_completed
+        className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl shadow-sm transition-all ${
+          isHidden
+            ? "bg-white border-2 border-dashed border-slate-300 opacity-80"
+            : "border-2 border-slate-100"
+        } ${
+          task.is_completed && !isHidden
             ? "opacity-60 grayscale-[0.2] bg-slate-50"
-            : "bg-white"
+            : !isHidden
+              ? "bg-white"
+              : ""
         }`}
       >
         <div className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-1 rounded-md shrink-0">
@@ -148,6 +165,13 @@ export const TaskItem = ({
           <Tag size={10} />
           <span className="truncate max-w-[64px]">{categoryName}</span>
         </span>
+
+        {isHidden && (
+          <span className="flex items-center gap-1 shrink-0 text-[10px] font-bold text-slate-500 bg-slate-200/50 px-1.5 py-0.5 rounded">
+            <EyeOff size={10} />
+            学習者に非表示
+          </span>
+        )}
 
         <span className="flex items-center shrink-0 text-sky-500 text-sm font-black ml-auto">
           +{task.reward_points}コ

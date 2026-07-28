@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Pencil,
   Trash2,
@@ -9,10 +9,12 @@ import {
   Circle,
   Gift,
   EyeOff,
+  Undo2,
 } from "lucide-react";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { TutorialFieldHint } from "../../tutorial/TutorialFieldHint";
+import { Modal } from "../ui/Modal";
 
 const isHiddenForLearner = (scheduledAt: string | null | undefined) => {
   if (!scheduledAt) return false;
@@ -56,6 +58,10 @@ export const TaskItem = ({
   const stubRef = useRef<HTMLDivElement>(null);
   const isAnimating = useRef(false);
 
+  // モーダル用の状態管理
+  const [isUndoConfirming, setIsUndoConfirming] = useState(false);
+  const [isClaimConfirming, setIsClaimConfirming] = useState(false);
+
   const categoryColor = task.categories?.color ?? "#e0f2fe";
   const categoryName = task.categories?.name ?? "未分類";
 
@@ -91,50 +97,59 @@ export const TaskItem = ({
       triggerHaptic();
 
       if (task.is_completed) {
-        if (window.confirm("タスクの完了を取り消しますか？")) {
-          onComplete(task.id);
-        }
+        setIsUndoConfirming(true);
       } else {
         onComplete(task.id);
       }
     }
   };
 
-  const handleClaimClick = async (e: React.MouseEvent) => {
+  const handleUndoConfirm = () => {
+    triggerHaptic();
+    setIsUndoConfirming(false);
+    onComplete(task.id);
+  };
+
+  const handleClaimClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (canClaimPoints && !isAnimating.current) {
       triggerHaptic();
-      if (window.confirm("タスクを完了していちごを受け取りますか？")) {
-        if (stubRef.current) {
-          isAnimating.current = true;
-          const stub = stubRef.current;
-          const computedStyle = window.getComputedStyle(stub);
-          const currentTransform = computedStyle.transform;
-          stub.style.animation = "none";
-
-          const animation = stub.animate(
-            [
-              { transform: currentTransform, opacity: 1 },
-              {
-                transform:
-                  "translate(40px, 50px) rotateZ(15deg) rotateY(-15deg) rotateX(10deg)",
-                opacity: 0,
-              },
-            ],
-            {
-              duration: 800,
-              easing: "ease-out",
-              fill: "forwards",
-            },
-          );
-
-          await animation.finished;
-          stub.style.animation = "";
-          isAnimating.current = false;
-        }
-        onClaimPoints(task.id);
-      }
+      setIsClaimConfirming(true);
     }
+  };
+
+  const handleClaimConfirm = async () => {
+    triggerHaptic();
+    setIsClaimConfirming(false);
+
+    if (stubRef.current) {
+      isAnimating.current = true;
+      const stub = stubRef.current;
+      const computedStyle = window.getComputedStyle(stub);
+      const currentTransform = computedStyle.transform;
+      stub.style.animation = "none";
+
+      const animation = stub.animate(
+        [
+          { transform: currentTransform, opacity: 1 },
+          {
+            transform:
+              "translate(40px, 50px) rotateZ(15deg) rotateY(-15deg) rotateX(10deg)",
+            opacity: 0,
+          },
+        ],
+        {
+          duration: 800,
+          easing: "ease-out",
+          fill: "forwards",
+        },
+      );
+
+      await animation.finished;
+      stub.style.animation = "";
+      isAnimating.current = false;
+    }
+    onClaimPoints(task.id);
   };
 
   if (isSupporter) {
@@ -394,6 +409,84 @@ export const TaskItem = ({
           )}
         </div>
       </div>
+
+      {isUndoConfirming && (
+        <Modal
+          isOpen={isUndoConfirming}
+          onClose={() => {
+            triggerHaptic();
+            setIsUndoConfirming(false);
+          }}
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
+        >
+          <Undo2 className="w-10 h-10 text-slate-400" />
+          <h4 className="font-black text-slate-800">
+            タスクの完了を取り消しますか？
+          </h4>
+          <p className="text-sm text-slate-500">
+            「{task.title}」を元の状態に戻します
+          </p>
+          <div className="flex gap-2 w-full mt-1">
+            <button
+              onClick={handleUndoConfirm}
+              className="flex-1 py-2 text-sm font-bold bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition-colors"
+            >
+              取り消す
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setIsUndoConfirming(false);
+              }}
+              className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {isClaimConfirming && (
+        <Modal
+          isOpen={isClaimConfirming}
+          onClose={() => {
+            triggerHaptic();
+            setIsClaimConfirming(false);
+          }}
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
+        >
+          <Gift className="w-10 h-10 text-amber-400" />
+          <h4 className="font-black text-slate-800">
+            いちごを受け取りますか？
+          </h4>
+          <p className="text-sm text-slate-500">
+            タスクを完了して{" "}
+            <span className="font-black text-amber-500">
+              +{task.reward_points}コ
+            </span>{" "}
+            のいちごをゲット！
+          </p>
+          <div className="flex gap-2 w-full mt-1">
+            <button
+              onClick={handleClaimConfirm}
+              className="flex-1 py-2 text-sm font-bold bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition-colors"
+            >
+              受け取る
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setIsClaimConfirming(false);
+              }}
+              className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 };

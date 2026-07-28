@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useProfile } from "../hooks/useProfile";
 import { useTask } from "../hooks/useTask";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
@@ -10,6 +11,8 @@ import { TaskTutorial } from "../tutorial/TaskTutorial";
 import { useSupporterTutorial } from "../tutorial/useSupporterTutorial";
 import { SupporterTutorialContext } from "../tutorial/SupporterTutorialContext";
 import { getTutorialSteps } from "../tutorial/tutorialSteps";
+import { Modal } from "../components/ui/Modal";
+import { useHaptic } from "../hooks/useHaptic"; // 1. useHaptic をインポート
 
 export default function Task() {
   const { profile } = useProfile();
@@ -23,9 +26,18 @@ export default function Task() {
     completeTask,
     claimTaskPoints,
   } = useTask();
+
+  const triggerHaptic = useHaptic(); // 2. フックを初期化
+
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
   const supporterTutorial = useSupporterTutorial();
+
+  // 削除モーダル用の状態管理
+  const [deletingTask, setDeletingTask] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const { containerRef, pullDistance, isRefreshing, isReady } =
     usePullToRefresh<HTMLDivElement>({
@@ -56,42 +68,66 @@ export default function Task() {
     return createTask(input);
   };
 
-  const handleDelete = async (taskId: string) => {
-    if (!window.confirm("このタスクを削除しますか？")) return;
-    await deleteTask(taskId);
+  const handleDeleteRequest = (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) {
+      triggerHaptic(); // 3. 削除リクエスト時に触覚をトリガー
+      setDeletingTask({ id: task.id, title: task.title });
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingTask) return;
+    triggerHaptic(); // 4. 削除確定時に触覚をトリガー
+    await deleteTask(deletingTask.id);
+    setDeletingTask(null);
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-1">
-      <PullToRefreshIndicator
-        pullDistance={pullDistance}
-        isRefreshing={isRefreshing}
-        isReady={isReady}
-      />
-      <div className="flex justify-end items-center gap-2">
-        {!isSupporter && (
-          <span
-            className="text-sky-500 font-bold"
-            data-tutorial-id="tutorial-points"
-            style={{
-              fontFamily:
-                '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
-            }}
-          >
-            たまったいちご：{profile?.points ?? 0}コ
-          </span>
-        )}
-      </div>
+    <>
+      <div ref={containerRef} className="flex flex-col gap-1">
+        <PullToRefreshIndicator
+          pullDistance={pullDistance}
+          isRefreshing={isRefreshing}
+          isReady={isReady}
+        />
+        <div className="flex justify-end items-center gap-2">
+          {!isSupporter && (
+            <span
+              className="text-sky-500 font-bold"
+              data-tutorial-id="tutorial-points"
+              style={{
+                fontFamily:
+                  '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
+              }}
+            >
+              たまったいちご：{profile?.points ?? 0}コ
+            </span>
+          )}
+        </div>
 
-      {isSupporter && (
-        <SupporterTutorialContext.Provider value={supporterTutorial}>
-          <TaskForm
-            isOpen={showForm}
-            onToggle={() => setShowForm((v) => !v)}
-            onSubmit={handleSubmit}
-            editingTask={editingTask}
-            onCancelEdit={() => setEditingTask(null)}
-          />
+        {isSupporter && (
+          <SupporterTutorialContext.Provider value={supporterTutorial}>
+            <TaskForm
+              isOpen={showForm}
+              onToggle={() => setShowForm((v) => !v)}
+              onSubmit={handleSubmit}
+              editingTask={editingTask}
+              onCancelEdit={() => setEditingTask(null)}
+            />
+            <TaskList
+              tasks={visibleTasks}
+              isLoading={isLoading}
+              isSupporter={isSupporter}
+              onComplete={completeTask}
+              onClaimPoints={claimTaskPoints}
+              onEdit={(task) => setEditingTask(task)}
+              onDelete={handleDeleteRequest}
+            />
+          </SupporterTutorialContext.Provider>
+        )}
+
+        {!isSupporter && (
           <TaskList
             tasks={visibleTasks}
             isLoading={isLoading}
@@ -99,33 +135,58 @@ export default function Task() {
             onComplete={completeTask}
             onClaimPoints={claimTaskPoints}
             onEdit={(task) => setEditingTask(task)}
-            onDelete={handleDelete}
+            onDelete={handleDeleteRequest}
           />
-        </SupporterTutorialContext.Provider>
-      )}
+        )}
 
-      {!isSupporter && (
-        <TaskList
-          tasks={visibleTasks}
-          isLoading={isLoading}
-          isSupporter={isSupporter}
-          onComplete={completeTask}
-          onClaimPoints={claimTaskPoints}
-          onEdit={(task) => setEditingTask(task)}
-          onDelete={handleDelete}
-        />
-      )}
+        {/* 学習者向けのみスポットライト形式のチュートリアルを使用する。
+            支援者向けは各入力欄フォーカス時の吹き出し説明（TutorialFieldHint）に置き換えた。 */}
+        {!isSupporter && (
+          <TaskTutorial
+            role="learner"
+            tutorialId="task"
+            steps={getTutorialSteps()}
+            enabled={visibleTasks.length > 0}
+          />
+        )}
+      </div>
 
-      {/* 学習者向けのみスポットライト形式のチュートリアルを使用する。
-          支援者向けは各入力欄フォーカス時の吹き出し説明（TutorialFieldHint）に置き換えた。 */}
-      {!isSupporter && (
-        <TaskTutorial
-          role="learner"
-          tutorialId="task"
-          steps={getTutorialSteps()}
-          enabled={visibleTasks.length > 0}
-        />
+      {deletingTask && (
+        <Modal
+          isOpen={!!deletingTask}
+          onClose={() => {
+            triggerHaptic(); // 5. モーダルを閉じる際に触覚をトリガー
+            setDeletingTask(null);
+          }}
+          overlayClassName="z-50"
+          contentClassName="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm flex flex-col items-center gap-3 text-center"
+        >
+          <Trash2 className="w-10 h-10 text-red-400" />
+          <h4 className="font-black text-slate-800">タスクを削除しますか？</h4>
+          <p className="text-sm text-slate-500">
+            「{deletingTask.title}」を削除します。
+            <br />
+            一度削除すると元に戻せません。
+          </p>
+          <div className="flex gap-2 w-full mt-1">
+            <button
+              onClick={handleDeleteConfirm}
+              className="flex-1 py-2 text-sm font-bold bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors"
+            >
+              削除する
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic(); // 6. キャンセル時に触覚をトリガー
+                setDeletingTask(null);
+              }}
+              className="flex-1 py-2 text-sm font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        </Modal>
       )}
-    </div>
+    </>
   );
 }

@@ -5,6 +5,8 @@ import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { Modal } from "../ui/Modal";
+import { TutorialFieldHint } from "../../tutorial/TutorialFieldHint";
+import { useSupporterTutorialContext } from "../../tutorial/SupporterTutorialContext";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -38,6 +40,8 @@ export const TaskForm = ({
 }: TaskFormProps) => {
   const triggerHaptic = useHaptic();
   const { categories, addCategory, deleteCategory } = useCategory();
+  const { active: tutorialActive, dismiss: dismissTutorial } =
+    useSupporterTutorialContext();
 
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
@@ -193,21 +197,25 @@ export const TaskForm = ({
     resetForm();
     if (isEditing && onCancelEdit) onCancelEdit();
     if (!isEditing) onToggle();
+    if (!isEditing && tutorialActive) dismissTutorial();
   };
 
   if (!isOpen && !isEditing) {
     return (
-      <button
-        type="button"
-        onClick={() => {
-          triggerHaptic();
-          onToggle();
-        }}
-        className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
-      >
-        <Plus size={18} />
-        新しいタスクを作成
-      </button>
+      <TutorialFieldHint text="ここから新しいタスクを追加できます。">
+        <button
+          type="button"
+          data-tutorial-id="tutorial-new-task-btn"
+          onClick={() => {
+            triggerHaptic();
+            onToggle();
+          }}
+          className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
+        >
+          <Plus size={18} />
+          新しいタスクを作成
+        </button>
+      </TutorialFieldHint>
     );
   }
 
@@ -240,7 +248,11 @@ export const TaskForm = ({
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-sky-600 font-medium">カテゴリ</label>
-          <div className="flex flex-wrap gap-2 mb-1">
+          <TutorialFieldHint text="「勉強」「お手伝い」のように分類できます。「新規」から自分でカテゴリを追加することもできます。">
+          <div
+            className="flex flex-wrap gap-2 mb-1"
+            data-tutorial-id="tutorial-category-select"
+          >
             {categories.map((c) => {
               const isSelected = categoryId === c.id;
               const categoryColor = c.color || "#38bdf8";
@@ -287,6 +299,7 @@ export const TaskForm = ({
               新規
             </button>
           </div>
+          </TutorialFieldHint>
 
           {/* カテゴリの新規作成・削除は、別レイヤーのモーダルを重ねず
               同じフォームパネル内にインライン表示する(ネストしたモーダルを避けるため) */}
@@ -377,13 +390,16 @@ export const TaskForm = ({
         </div>
 
         {/* タスク名 */}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="タスク名"
-          className="border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
-        />
+        <TutorialFieldHint text="やってほしいことを入力してください。">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="タスク名"
+            data-tutorial-id="tutorial-title-input"
+            className="w-full border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+          />
+        </TutorialFieldHint>
 
         {/* 予定日（日付入力用のプレースホルダーハック） */}
         <input
@@ -417,30 +433,40 @@ export const TaskForm = ({
 
         {/* ポイント（RewardFormに似た横並びレイアウト） */}
         <div className="flex items-center gap-2">
-          <Icon iconNode={strawberry} className="text-sky-400 shrink-0" size={20} />
-          <input
-            type="number"
-            min={0}
-            value={rewardPoints}
-            onChange={(e) => {
-              const val = e.target.value;
-              setRewardPoints(val === "" ? "" : Number(val));
-            }}
-            placeholder="獲得いちご"
-            className="w-28 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+          <Icon
+            iconNode={strawberry}
+            className="text-sky-400 shrink-0"
+            size={20}
           />
+          <TutorialFieldHint text="タスク完了時にもらえる「いちご」の数を、頑張り度に合わせて決められます。">
+            <input
+              type="number"
+              min={0}
+              value={rewardPoints}
+              onChange={(e) => {
+                const val = e.target.value;
+                setRewardPoints(val === "" ? "" : Number(val));
+              }}
+              placeholder="獲得いちご"
+              data-tutorial-id="tutorial-points-input"
+              className="w-28 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+            />
+          </TutorialFieldHint>
           <span className="text-sm font-bold text-sky-600">コ</span>
         </div>
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-1 py-2.5 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50"
-        >
-          {isSubmitting ? "保存中..." : isEditing ? "更新する" : "作成する"}
-        </button>
+        <TutorialFieldHint text="タップするとタスクが保存されます。" placement="top">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            data-tutorial-id="tutorial-submit-btn"
+            className="w-full mt-1 py-2.5 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50"
+          >
+            {isSubmitting ? "保存中..." : isEditing ? "更新する" : "作成する"}
+          </button>
+        </TutorialFieldHint>
       </form>
     </div>
   );

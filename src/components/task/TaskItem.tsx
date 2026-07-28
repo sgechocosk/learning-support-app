@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
+import { TutorialFieldHint } from "../../tutorial/TutorialFieldHint";
 
 const isHiddenForLearner = (scheduledAt: string | null | undefined) => {
   if (!scheduledAt) return false;
@@ -35,6 +36,7 @@ const ANIMATION_STYLE = `
 interface TaskItemProps {
   task: Task;
   isSupporter: boolean;
+  isFirst?: boolean;
   onComplete: (taskId: string) => void;
   onClaimPoints: (taskId: string) => void;
   onEdit: (task: Task) => void;
@@ -44,6 +46,7 @@ interface TaskItemProps {
 export const TaskItem = ({
   task,
   isSupporter,
+  isFirst = false,
   onComplete,
   onClaimPoints,
   onEdit,
@@ -179,24 +182,53 @@ export const TaskItem = ({
 
         {!task.is_completed && (
           <div className="flex gap-1 shrink-0">
-            <button
-              onClick={() => {
-                triggerHaptic();
-                onEdit(task);
-              }}
-              className="p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors"
-            >
-              <Pencil size={24} />
-            </button>
-            <button
-              onClick={() => {
-                triggerHaptic();
-                onDelete(task.id);
-              }}
-              className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
-            >
-              <Trash2 size={24} />
-            </button>
+            {isFirst ? (
+              <TutorialFieldHint text="鉛筆アイコンで編集、ゴミ箱アイコンで削除ができます。">
+                <div className="flex gap-1">
+                  <button
+                    data-tutorial-id="tutorial-edit-btn"
+                    onClick={() => {
+                      triggerHaptic();
+                      onEdit(task);
+                    }}
+                    className="p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors"
+                  >
+                    <Pencil size={24} />
+                  </button>
+                  <button
+                    data-tutorial-id="tutorial-delete-btn"
+                    onClick={() => {
+                      triggerHaptic();
+                      onDelete(task.id);
+                    }}
+                    className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
+                  >
+                    <Trash2 size={24} />
+                  </button>
+                </div>
+              </TutorialFieldHint>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    triggerHaptic();
+                    onEdit(task);
+                  }}
+                  className="p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors"
+                >
+                  <Pencil size={24} />
+                </button>
+                <button
+                  onClick={() => {
+                    triggerHaptic();
+                    onDelete(task.id);
+                  }}
+                  className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
+                >
+                  <Trash2 size={24} />
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -227,6 +259,7 @@ export const TaskItem = ({
       >
         <div
           onClick={!isClaimed ? handleLeftClick : undefined}
+          data-tutorial-id={isFirst ? "tutorial-task-card" : undefined}
           className={`p-3 sm:p-5 pl-12 sm:pl-16 flex-1 min-w-0 relative z-20 flex flex-col border-2 border-slate-100 shadow-sm rounded-l-2xl ${
             !isClaimed ? "border-r-0" : ""
           } ${task.is_completed ? "bg-slate-50" : isToday ? "bg-orange-50" : "bg-white"} ${
@@ -307,6 +340,7 @@ export const TaskItem = ({
             <>
               <div
                 ref={stubRef}
+                data-tutorial-id={isFirst ? "tutorial-reward-stub" : undefined}
                 className={`absolute inset-0 p-3 sm:p-5 flex flex-col items-center justify-center z-10 transition-colors [transform-style:preserve-3d] rounded-r-2xl border-2 border-l-0 border-slate-100 shadow-sm ${
                   task.is_completed ? "bg-white" : "bg-sky-50/50"
                 } ${canClaimPoints ? "stub-bottom-attached" : ""}`}

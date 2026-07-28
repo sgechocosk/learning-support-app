@@ -57,9 +57,7 @@ export default function InvitePartner() {
 
     if (insertError || !invitation) {
       console.error(insertError);
-      setError(
-        insertError?.message ?? "招待の作成に失敗しました。",
-      );
+      setError(insertError?.message ?? "招待の作成に失敗しました。");
       setLoading(false);
       return;
     }

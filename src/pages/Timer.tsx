@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Play, Pause, CheckCircle2, Heart } from "lucide-react";
+import { Play, Pause, CheckCircle2 } from "lucide-react";
 import HerbariumFlask from "../components/timer/HerbariumFlask";
 import { useFitScale } from "../hooks/useFitScale";
 import { NumberStepper } from "../components/ui/NumberStepper";
@@ -17,6 +17,11 @@ import {
   DEFAULT_TIMER_SETTINGS,
 } from "../hooks/useTimerSettings";
 import type { TimerSettings } from "../types";
+import { TaskTutorial } from "../tutorial/TaskTutorial";
+import { TutorialNote } from "../tutorial/TutorialNote";
+import { useSupporterTutorial } from "../tutorial/useSupporterTutorial";
+import { SupporterTutorialContext } from "../tutorial/SupporterTutorialContext";
+import { timerTutorialSteps } from "../tutorial/tutorialSteps";
 
 const formatDuration = (ms: number) => {
   const totalSeconds = Math.floor(ms / 1000);
@@ -45,6 +50,9 @@ function SupporterSettingsPanel() {
   const triggerHaptic = useHaptic();
   const { partnerName } = useProfile();
   const { settings, isLoading, updateSettings } = useTimerSettings();
+  const supporterTutorial = useSupporterTutorial(
+    "tutorial_timer_done_supporter",
+  );
 
   const current: Pick<
     TimerSettings,
@@ -73,117 +81,115 @@ function SupporterSettingsPanel() {
   ];
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col gap-5 px-4 py-4">
-      <div>
-        <h1 className="text-lg font-bold text-gray-700">タイマー設定</h1>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {partnerName ? `${partnerName}さん` : "学習者"}
-          の作業タイマーの動作を設定します。学習者本人はここを編集できません。
-        </p>
-      </div>
-
-      <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col gap-5">
+    <SupporterTutorialContext.Provider value={supporterTutorial}>
+      <div className="w-full max-w-md mx-auto flex flex-col gap-5 px-4 py-4">
         <div>
-          <p className="text-xs font-semibold text-gray-500 mb-1">
-            いちごが貯まる間隔
-          </p>
-          <p className="text-[11px] text-gray-400 mb-2">
-            {MIN_INTERVAL_MINUTES}〜{MAX_INTERVAL_MINUTES}分の間で設定できます
-          </p>
-          <div className="flex items-center gap-2">
-            <NumberStepper
-              value={current.interval_minutes}
-              onChange={(v) => {
-                if (v === "") return;
-                triggerHaptic();
-                updateSettings({ interval_minutes: v });
-              }}
-              min={MIN_INTERVAL_MINUTES}
-              max={MAX_INTERVAL_MINUTES}
-              disabled={isLoading}
-              accentClassName="border-sky-200 focus:ring-sky-300 hover:bg-sky-50 text-sky-600"
-            />
-            <span className="text-xs text-gray-400">分 / 1いちご</span>
-          </div>
+          <h1 className="text-lg font-bold text-gray-700">タイマー設定</h1>
         </div>
 
-        <div className="h-px bg-gray-100" />
-
-        <div className="flex items-start justify-between gap-3">
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col gap-5">
           <div>
-            <p className="text-xs font-semibold text-gray-500">
-              バックグラウンドでも継続
+            <p className="text-xs font-semibold text-gray-500 mb-1">
+              いちごが貯まる間隔
             </p>
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              オフ（デフォルト）: 画面を離れると自動でストップします
-              <br />
-              オン: 画面を離れていてもタイマーは止まりません
+            <p className="text-[11px] text-gray-400 mb-2">
+              {MIN_INTERVAL_MINUTES}〜{MAX_INTERVAL_MINUTES}分の間で設定できます
             </p>
-          </div>
-          <ToggleSwitch
-            checked={current.continue_in_background}
-            onChange={(v) => {
-              triggerHaptic();
-              updateSettings({ continue_in_background: v });
-            }}
-            disabled={isLoading}
-            accentClassName="bg-sky-400"
-          />
-        </div>
-
-        <div className="h-px bg-gray-100" />
-
-        <div>
-          <p className="text-xs font-semibold text-gray-500 mb-2">
-            いちごの付与タイミング
-          </p>
-          <div className="flex flex-col gap-2">
-            {timingOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                disabled={isLoading}
-                onClick={() => {
+            <div className="flex items-center gap-2">
+              <NumberStepper
+                value={current.interval_minutes}
+                onChange={(v) => {
+                  if (v === "") return;
                   triggerHaptic();
-                  updateSettings({ points_timing: opt.value });
+                  updateSettings({ interval_minutes: v });
                 }}
-                className={`text-left px-3 py-2.5 rounded-xl border transition-colors disabled:opacity-50 ${
-                  current.points_timing === opt.value
-                    ? "border-sky-300 bg-sky-50"
-                    : "border-gray-100 bg-white"
-                }`}
-              >
-                <span
-                  className={`text-sm font-bold ${
+                min={MIN_INTERVAL_MINUTES}
+                max={MAX_INTERVAL_MINUTES}
+                disabled={isLoading}
+                accentClassName="border-sky-200 focus:ring-sky-300 hover:bg-sky-50 text-sky-600"
+              />
+              <span className="text-xs text-gray-400">分 / いちご</span>
+            </div>
+          </div>
+
+          <div className="h-px bg-gray-100" />
+
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-gray-500">
+                バックグラウンドでも継続
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                オフ: 画面を離れると自動でストップします
+                <br />
+                オン: 画面を離れていてもタイマーは止まりません
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={current.continue_in_background}
+              onChange={(v) => {
+                triggerHaptic();
+                updateSettings({ continue_in_background: v });
+              }}
+              disabled={isLoading}
+              accentClassName="bg-sky-400"
+            />
+          </div>
+
+          <div className="h-px bg-gray-100" />
+
+          <div>
+            <p className="text-xs font-semibold text-gray-500 mb-2">
+              いちごの付与タイミング
+            </p>
+            <div className="flex flex-col gap-2">
+              {timingOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => {
+                    triggerHaptic();
+                    updateSettings({ points_timing: opt.value });
+                  }}
+                  className={`text-left px-3 py-2.5 rounded-xl border transition-colors disabled:opacity-50 ${
                     current.points_timing === opt.value
-                      ? "text-sky-600"
-                      : "text-gray-600"
+                      ? "border-sky-300 bg-sky-50"
+                      : "border-gray-100 bg-white"
                   }`}
                 >
-                  {opt.label}
-                </span>
-                <span className="block text-[11px] text-gray-400">
-                  {opt.desc}
-                </span>
-              </button>
-            ))}
+                  <span
+                    className={`text-sm font-bold ${
+                      current.points_timing === opt.value
+                        ? "text-sky-600"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    {opt.label}
+                  </span>
+                  <span className="block text-[11px] text-gray-400">
+                    {opt.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {current.points_timing === "on_finish" && (
+              <TutorialNote
+                className="mt-2"
+                text="「タイマー終了後」の場合、学習者が完了ボタンを押して確認モーダルで決定した時点でいちごが確定します。"
+              />
+            )}
           </div>
-          {current.points_timing === "on_finish" && (
-            <p className="text-[11px] text-amber-500 mt-2">
-              「タイマー終了後」の場合、学習者が完了ボタンを押して確認モーダルで決定した時点でいちごが確定します。
-            </p>
-          )}
         </div>
-      </div>
 
-      <div className="flex items-start gap-2 px-1 text-gray-400">
-        <Heart size={14} className="mt-0.5 shrink-0 text-rose-300" />
-        <p className="text-[11px] leading-relaxed">
-          この設定は{partnerName ? `${partnerName}さん` : "学習者"}
-          の端末にも同期され、学習者側では「スタート」「ストップ」「完了」の操作のみが可能です。
-        </p>
+        <TutorialNote
+          className="mx-1"
+          text={`この設定は${
+            partnerName ? `${partnerName}さん` : "学習者"
+          }の端末にも同期され、学習者側では「スタート」「ストップ」「完了」の操作のみが可能です。`}
+        />
       </div>
-    </div>
+    </SupporterTutorialContext.Provider>
   );
 }
 
@@ -260,11 +266,17 @@ function LearnerTimerPanel() {
 
   return (
     <div className="w-full h-full max-w-4xl mx-auto px-4 pt-3 pb-0 grid grid-cols-1 grid-rows-[auto_1fr_auto] landscape:grid-cols-2 landscape:grid-rows-[1fr_1fr] gap-4 min-h-0">
-      <div className="flex flex-col items-center justify-center landscape:col-start-1 landscape:row-start-1 landscape:self-end landscape:pb-4">
+      <div
+        className="flex flex-col items-center justify-center landscape:col-start-1 landscape:row-start-1 landscape:self-end landscape:pb-4"
+        data-tutorial-id="tutorial-timer-elapsed"
+      >
         <p className="text-5xl font-mono font-bold text-sky-600 tabular-nums tracking-tight">
           {formatDuration(elapsedMs)}
         </p>
-        <p className="text-sm text-gray-500 font-medium mt-1">
+        <p
+          className="text-sm text-gray-500 font-medium mt-1"
+          data-tutorial-id="tutorial-timer-next-strawberry"
+        >
           次の🍓まで {formatDuration(msUntilNextStrawberry)}
         </p>
         {!isSettingsLoading && !continueInBackground && (
@@ -276,6 +288,7 @@ function LearnerTimerPanel() {
 
       <div
         ref={flaskContainerRef}
+        data-tutorial-id="tutorial-timer-flask"
         className="w-full h-full flex items-center justify-center min-h-0 landscape:col-start-2 landscape:row-start-1 landscape:row-span-2 overflow-hidden"
       >
         <div
@@ -299,6 +312,7 @@ function LearnerTimerPanel() {
       <div className="w-full flex items-center justify-center gap-6 landscape:col-start-1 landscape:row-start-2 landscape:self-start landscape:pt-4">
         <button
           type="button"
+          data-tutorial-id="tutorial-timer-complete-button"
           onClick={handleCompleteRequest}
           disabled={!hasProgress}
           className="w-14 h-14 flex items-center justify-center rounded-full bg-white border border-gray-200 text-emerald-400 shadow-sm active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100 shrink-0"
@@ -309,6 +323,7 @@ function LearnerTimerPanel() {
 
         <button
           type="button"
+          data-tutorial-id="tutorial-timer-toggle-button"
           onClick={handleToggle}
           className={`w-20 h-20 flex items-center justify-center rounded-full shadow-lg text-white active:scale-95 transition-transform shrink-0 ${
             isRunning
@@ -387,6 +402,12 @@ function LearnerTimerPanel() {
           </button>
         </div>
       </Modal>
+
+      <TaskTutorial
+        role="learner"
+        tutorialId="timer"
+        steps={timerTutorialSteps}
+      />
     </div>
   );
 }

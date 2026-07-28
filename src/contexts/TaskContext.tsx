@@ -49,6 +49,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       const bDate = b.scheduled_at
         ? new Date(b.scheduled_at).getTime()
         : Infinity;
+
+      if (aDate === bDate) return 0;
       return aDate - bDate;
     });
   };

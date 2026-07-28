@@ -6,6 +6,10 @@ import { TaskForm } from "../components/task/TaskForm";
 import { TaskList } from "../components/task/TaskList";
 import { PullToRefreshIndicator } from "../components/ui/PullToRefreshIndicator";
 import type { Task as TaskType } from "../types";
+import { TaskTutorial } from "../tutorial/TaskTutorial";
+import { useSupporterTutorial } from "../tutorial/useSupporterTutorial";
+import { SupporterTutorialContext } from "../tutorial/SupporterTutorialContext";
+import { getTutorialSteps } from "../tutorial/tutorialSteps";
 
 export default function Task() {
   const { profile } = useProfile();
@@ -21,6 +25,7 @@ export default function Task() {
   } = useTask();
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
+  const supporterTutorial = useSupporterTutorial();
 
   const { containerRef, pullDistance, isRefreshing, isReady } =
     usePullToRefresh<HTMLDivElement>({
@@ -63,10 +68,11 @@ export default function Task() {
         isRefreshing={isRefreshing}
         isReady={isReady}
       />
-      {!isSupporter && (
-        <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2">
+        {!isSupporter && (
           <span
             className="text-sky-500 font-bold"
+            data-tutorial-id="tutorial-points"
             style={{
               fontFamily:
                 '"M PLUS Rounded 1c", "Nunito", "Quicksand", sans-serif',
@@ -74,27 +80,52 @@ export default function Task() {
           >
             たまったいちご：{profile?.points ?? 0}コ
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
       {isSupporter && (
-        <TaskForm
-          isOpen={showForm}
-          onToggle={() => setShowForm((v) => !v)}
-          onSubmit={handleSubmit}
-          editingTask={editingTask}
-          onCancelEdit={() => setEditingTask(null)}
+        <SupporterTutorialContext.Provider value={supporterTutorial}>
+          <TaskForm
+            isOpen={showForm}
+            onToggle={() => setShowForm((v) => !v)}
+            onSubmit={handleSubmit}
+            editingTask={editingTask}
+            onCancelEdit={() => setEditingTask(null)}
+          />
+          <TaskList
+            tasks={visibleTasks}
+            isLoading={isLoading}
+            isSupporter={isSupporter}
+            onComplete={completeTask}
+            onClaimPoints={claimTaskPoints}
+            onEdit={(task) => setEditingTask(task)}
+            onDelete={handleDelete}
+          />
+        </SupporterTutorialContext.Provider>
+      )}
+
+      {!isSupporter && (
+        <TaskList
+          tasks={visibleTasks}
+          isLoading={isLoading}
+          isSupporter={isSupporter}
+          onComplete={completeTask}
+          onClaimPoints={claimTaskPoints}
+          onEdit={(task) => setEditingTask(task)}
+          onDelete={handleDelete}
         />
       )}
-      <TaskList
-        tasks={visibleTasks}
-        isLoading={isLoading}
-        isSupporter={isSupporter}
-        onComplete={completeTask}
-        onClaimPoints={claimTaskPoints}
-        onEdit={(task) => setEditingTask(task)}
-        onDelete={handleDelete}
-      />
+
+      {/* 学習者向けのみスポットライト形式のチュートリアルを使用する。
+          支援者向けは各入力欄フォーカス時の吹き出し説明（TutorialFieldHint）に置き換えた。 */}
+      {!isSupporter && (
+        <TaskTutorial
+          role="learner"
+          tutorialId="task"
+          steps={getTutorialSteps()}
+          enabled={visibleTasks.length > 0}
+        />
+      )}
     </div>
   );
 }

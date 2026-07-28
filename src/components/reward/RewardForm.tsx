@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Icon, X, Plus, Package, Eye, EyeOff } from "lucide-react";
-import { strawberry } from '@lucide/lab';
+import { strawberry } from "@lucide/lab";
 import type { Reward } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { NumberStepper } from "../ui/NumberStepper";
@@ -206,7 +206,11 @@ export const RewardForm = ({
         />
 
         <div className="flex items-center gap-2">
-          <Icon iconNode={strawberry} className="text-amber-400 shrink-0" size={20} />
+          <Icon
+            iconNode={strawberry}
+            className="text-amber-400 shrink-0"
+            size={20}
+          />
           <input
             type="number"
             min={0}

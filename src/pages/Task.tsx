@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useProfile } from "../hooks/useProfile";
 import { useTask } from "../hooks/useTask";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
@@ -6,10 +6,10 @@ import { TaskForm } from "../components/task/TaskForm";
 import { TaskList } from "../components/task/TaskList";
 import { PullToRefreshIndicator } from "../components/ui/PullToRefreshIndicator";
 import type { Task as TaskType } from "../types";
-import { TaskTutorial, type TaskTutorialHandle } from "../tutorial/TaskTutorial";
-import { TutorialHelpButton } from "../tutorial/TutorialHelpButton";
+import { TaskTutorial } from "../tutorial/TaskTutorial";
 import { useSupporterTutorial } from "../tutorial/useSupporterTutorial";
 import { SupporterTutorialContext } from "../tutorial/SupporterTutorialContext";
+import { getTutorialSteps } from "../tutorial/tutorialSteps";
 
 export default function Task() {
   const { profile } = useProfile();
@@ -25,7 +25,6 @@ export default function Task() {
   } = useTask();
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
-  const tutorialRef = useRef<TaskTutorialHandle>(null);
   const supporterTutorial = useSupporterTutorial();
 
   const { containerRef, pullDistance, isRefreshing, isReady } =
@@ -82,9 +81,6 @@ export default function Task() {
             たまったいちご：{profile?.points ?? 0}コ
           </span>
         )}
-        {!isSupporter && visibleTasks.length > 0 && (
-          <TutorialHelpButton onClick={() => tutorialRef.current?.restart()} />
-        )}
       </div>
 
       {isSupporter && (
@@ -124,9 +120,10 @@ export default function Task() {
           支援者向けは各入力欄フォーカス時の吹き出し説明（TutorialFieldHint）に置き換えた。 */}
       {!isSupporter && (
         <TaskTutorial
-          ref={tutorialRef}
           role="learner"
-          hasTasks={visibleTasks.length > 0}
+          tutorialId="task"
+          steps={getTutorialSteps()}
+          enabled={visibleTasks.length > 0}
         />
       )}
     </div>

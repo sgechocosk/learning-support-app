@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, ArrowRight, ArrowLeft, Hand } from "lucide-react";
 import type { TutorialRect } from "./useTutorialEngine";
@@ -7,6 +7,11 @@ import type { TutorialPlacement } from "./types";
 const PORTAL_ROOT_ID = "modal-portal-root";
 const SPOTLIGHT_PADDING = 8;
 const TOOLTIP_WIDTH = 300;
+// ボトムナビゲーション（Footer）と重ならないように確保しておく余白。
+// Footer の高さ（h-16=64px）＋下部セーフエリア余白（pb 20px 前後）を
+// 概算した上で、少し余裕を持たせている。
+const BOTTOM_NAV_RESERVE = 100;
+const VIEWPORT_EDGE_MARGIN = 12;
 
 interface SpotlightOverlayProps {
   rect: TutorialRect | null;
@@ -49,6 +54,21 @@ export const SpotlightOverlay = ({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // ツールチップの実際の高さを測って、下方向にはみ出してボトムナビゲーションと
+  // 重ならないよう補正する（スポットライト対象と重なるのは許容する）。
+  // ※ 補正後の位置を再度 DOM から測り直すと「測定→補正→再測定→…」で
+  //   上下に振動してしまうため、高さだけを測定し、位置は毎回スポットライトの
+  //   幾何情報から数式で計算する（前回の補正結果に依存させない）。
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [tooltipHeight, setTooltipHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = tooltipRef.current;
+    if (!el) return;
+    const height = el.getBoundingClientRect().height;
+    setTooltipHeight((prev) => (Math.abs(prev - height) > 0.5 ? height : prev));
+  });
+
   const portalRoot = document.getElementById(PORTAL_ROOT_ID);
   if (!portalRoot) return null;
 
@@ -83,8 +103,13 @@ export const SpotlightOverlay = ({
     );
 
     if (preferBelow) {
+      const naturalTop = spotlightStyle.top + spotlightStyle.height + 14;
+      const maxTop =
+        tooltipHeight > 0
+          ? viewport.height - BOTTOM_NAV_RESERVE - tooltipHeight
+          : Infinity;
       tooltipStyle = {
-        top: spotlightStyle.top + spotlightStyle.height + 14,
+        top: Math.min(naturalTop, Math.max(maxTop, VIEWPORT_EDGE_MARGIN)),
         left: rawLeft,
       };
     } else {
@@ -127,6 +152,7 @@ export const SpotlightOverlay = ({
 
       {/* ツールチップカード */}
       <div
+        ref={tooltipRef}
         className="absolute bg-white rounded-2xl shadow-2xl p-4 flex flex-col gap-2 border border-sky-100"
         style={{
           ...tooltipStyle,

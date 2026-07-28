@@ -42,6 +42,8 @@ export const RewardItem = ({
   const [showSharePrompt, setShowSharePrompt] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
+  // 交換成功時刻（共有画像に交換日時として表示するため保持）
+  const [redeemedAt, setRedeemedAt] = useState<Date | null>(null);
 
   const isOutOfStock =
     reward.remaining_quantity !== null && reward.remaining_quantity <= 0;
@@ -67,6 +69,7 @@ export const RewardItem = ({
     setJustRedeemed(true);
     setTimeout(() => setJustRedeemed(false), 1800);
     // 交換成功後、支援者への共有を尋ねる
+    setRedeemedAt(new Date());
     setShowSharePrompt(true);
   };
 
@@ -79,6 +82,7 @@ export const RewardItem = ({
       rewardTitle: reward.title,
       requiredPoints: reward.required_points,
       imageUrl: reward.image_url,
+      redeemedAt: redeemedAt ?? new Date(),
     });
     setIsSharing(false);
 

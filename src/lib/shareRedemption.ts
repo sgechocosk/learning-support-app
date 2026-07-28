@@ -7,6 +7,8 @@ export interface RedemptionShareParams {
   rewardTitle: string;
   requiredPoints: number;
   imageUrl: string | null;
+  // 交換日時（省略時は生成時点の現在時刻を使用）
+  redeemedAt?: Date;
 }
 
 export type ShareRedemptionStatus =
@@ -21,19 +23,45 @@ export interface ShareRedemptionResult {
 }
 
 const CANVAS_WIDTH = 1000;
-const CANVAS_HEIGHT = 1200;
+// 外枠の余白（上下左右で共通）
+const OUTER_MARGIN = 60;
 
-// ごほうび画像は外部(Supabase Storage等)から読み込むため、
-// canvasが汚染されないよう anonymous でCORSを試みる。
-// 失敗した場合は画像なし（アイコン代替）で生成を続行する。
-const loadImage = (url: string): Promise<HTMLImageElement | null> => {
-  return new Promise((resolve) => {
+// <img crossorigin="anonymous"> はサーバー側のCORS設定に依存して
+// 読み込みに失敗することがあるため、まず fetch でバイト列を取得して
+// blob URL化する方式を優先し、失敗時のみ従来のImage直読みにフォールバックする。
+const loadImage = async (url: string): Promise<HTMLImageElement | null> => {
+  // 1) fetch → blob URL（同一originのblobになるためcanvasも汚染されない）
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (res.ok) {
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const img = await new Promise<HTMLImageElement | null>((resolve) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => resolve(null);
+          image.src = objectUrl;
+        });
+        if (img) return img;
+      } finally {
+        // 画像はcanvasに描画済み/描画不可のいずれかなので即座に解放してよい
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+      }
+    }
+  } catch {
+    // fetchが失敗（CORSでブロック等）した場合は下のフォールバックへ
+  }
+
+  // 2) 従来方式（crossOrigin="anonymous"でのImage直読み）
+  const viaImgTag = await new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = url;
   });
+  return viaImgTag;
 };
 
 // 日本語混じりの長いテキストを指定幅で折り返す（文字単位の簡易実装）
@@ -74,11 +102,121 @@ const roundRect = (
   ctx.closePath();
 };
 
+const formatRedeemedAt = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${y}年${m}月${d}日 ${hh}:${mm} 交換`;
+};
+
+const HEADING_FONT =
+  "bold 56px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
+const TITLE_FONT = "bold 46px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
+const BADGE_FONT = "bold 38px sans-serif";
+const DATE_FONT = "bold 32px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
+const MESSAGE_FONT =
+  "bold 40px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
+
+const PHOTO_SIZE = 460;
+
+// 上から下へ積み上げる各要素の「高さ」と「次の要素との間隔」。
+// 間隔は0にはせず、詰まりすぎない程度の小さな余白を持たせる。
+const HEADING_TOP = 96; // カード上端 → 見出しベースラインまでの距離
+const HEADING_TO_PHOTO_GAP = 36;
+const PHOTO_TO_TITLE_GAP = 44;
+const TITLE_LINE_HEIGHT = 58;
+const TITLE_TO_BADGE_GAP = 30;
+const BADGE_H = 66;
+const BADGE_TO_DATE_GAP = 28;
+const DATE_LINE_HEIGHT = 44;
+const DATE_TO_MESSAGE_GAP = 24;
+const MESSAGE_LINE_HEIGHT = 50;
+const CARD_BOTTOM_PADDING = 32;
+
+interface Layout {
+  cardW: number;
+  cardH: number;
+  headingY: number;
+  photoX: number;
+  photoY: number;
+  titleStartY: number;
+  titleLines: string[];
+  badgeY: number;
+  dateY: number;
+  messageStartY: number;
+  messageLines: string[];
+}
+
+// タイトル・メッセージの折り返し行数はコンテンツ次第で変わるため、
+// 計測結果をもとにカード全体の高さ・各要素のY座標を一括で確定させる。
+const computeLayout = (
+  ctx: CanvasRenderingContext2D,
+  rewardTitle: string,
+  learnerName: string,
+): Layout => {
+  const cardW = CANVAS_WIDTH - OUTER_MARGIN * 2;
+
+  ctx.textAlign = "center";
+
+  ctx.font = TITLE_FONT;
+  const titleLines = wrapText(ctx, rewardTitle, cardW - 100).slice(0, 2);
+
+  ctx.font = MESSAGE_FONT;
+  const message = `${learnerName}さんが${rewardTitle}を交換しました！`;
+  const messageLines = wrapText(ctx, message, cardW - 100);
+
+  const headingY = HEADING_TOP;
+  const photoY = headingY + HEADING_TO_PHOTO_GAP;
+
+  // 修正箇所：GAPに加えて、テキスト自身の高さ（行高）を加算してベースラインを求める
+  const titleStartY =
+    photoY + PHOTO_SIZE + PHOTO_TO_TITLE_GAP + TITLE_LINE_HEIGHT;
+  const titleEndY = titleStartY + (titleLines.length - 1) * TITLE_LINE_HEIGHT;
+
+  const badgeY = titleEndY + TITLE_TO_BADGE_GAP;
+
+  // 修正箇所：バッジの下端からGAP分下げ、さらに日付テキストの行高を加算してベースラインを求める
+  const dateY = badgeY + BADGE_H + BADGE_TO_DATE_GAP + DATE_LINE_HEIGHT;
+
+  // 修正箇所：直前の日付テキストのベースラインから行高分を確保し、GAPを加えて次のベースラインを求める
+  const messageStartY = dateY + DATE_LINE_HEIGHT + DATE_TO_MESSAGE_GAP;
+  const messageEndY =
+    messageStartY + (messageLines.length - 1) * MESSAGE_LINE_HEIGHT;
+
+  const cardH = messageEndY + CARD_BOTTOM_PADDING;
+
+  return {
+    cardW,
+    cardH,
+    headingY,
+    photoX: (CANVAS_WIDTH - PHOTO_SIZE) / 2,
+    photoY,
+    titleStartY,
+    titleLines,
+    badgeY,
+    dateY,
+    messageStartY,
+    messageLines,
+  };
+};
+
 // ごほうび画像・名前・ポイント・お知らせメッセージを1枚のカード画像に合成する
 export const createRedemptionShareImage = async (
   params: RedemptionShareParams,
 ): Promise<Blob | null> => {
   const { learnerName, rewardTitle, requiredPoints, imageUrl } = params;
+  const redeemedAt = params.redeemedAt ?? new Date();
+
+  // レイアウト計算専用の一時canvas（実寸のcanvasサイズを内容に合わせて
+  // 決めるため、先にテキストの折り返し・行数を測定しておく）
+  const measureCanvas = document.createElement("canvas");
+  const mctx = measureCanvas.getContext("2d");
+  if (!mctx) return null;
+
+  const layout = computeLayout(mctx, rewardTitle, learnerName);
+  const CANVAS_HEIGHT = layout.cardH + OUTER_MARGIN * 2;
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_WIDTH;
@@ -94,16 +232,14 @@ export const createRedemptionShareImage = async (
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
   // カード
-  const cardX = 60;
-  const cardY = 60;
-  const cardW = CANVAS_WIDTH - cardX * 2;
-  const cardH = CANVAS_HEIGHT - cardY * 2;
+  const cardX = OUTER_MARGIN;
+  const cardY = OUTER_MARGIN;
   ctx.save();
   ctx.shadowColor = "rgba(15, 23, 42, 0.15)";
   ctx.shadowBlur = 50;
   ctx.shadowOffsetY = 16;
   ctx.fillStyle = "#ffffff";
-  roundRect(ctx, cardX, cardY, cardW, cardH, 40);
+  roundRect(ctx, cardX, cardY, layout.cardW, layout.cardH, 40);
   ctx.fill();
   ctx.restore();
 
@@ -111,76 +247,87 @@ export const createRedemptionShareImage = async (
 
   // 見出し
   ctx.fillStyle = "#f59e0b";
-  ctx.font = "bold 56px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
-  ctx.fillText("がんばりました！", CANVAS_WIDTH / 2, cardY + 100);
+  ctx.font = HEADING_FONT;
+  ctx.fillText("がんばりました！", CANVAS_WIDTH / 2, cardY + layout.headingY);
 
-  // ごほうび画像
-  const photoSize = 460;
-  const photoX = (CANVAS_WIDTH - photoSize) / 2;
-  const photoY = cardY + 140;
+  // ごほうび画像（一覧と同様に、切れないよう正方形の枠内に収める = contain）
+  const photoX = layout.photoX;
+  const photoY = cardY + layout.photoY;
 
   ctx.save();
-  roundRect(ctx, photoX, photoY, photoSize, photoSize, 32);
+  roundRect(ctx, photoX, photoY, PHOTO_SIZE, PHOTO_SIZE, 32);
   ctx.clip();
-  ctx.fillStyle = "#fef3c7";
-  ctx.fillRect(photoX, photoY, photoSize, photoSize);
 
   const img = imageUrl ? await loadImage(imageUrl) : null;
-  if (img && img.width > 0 && img.height > 0) {
-    const scale = Math.max(photoSize / img.width, photoSize / img.height);
-    const drawW = img.width * scale;
-    const drawH = img.height * scale;
-    const dx = photoX + (photoSize - drawW) / 2;
-    const dy = photoY + (photoSize - drawH) / 2;
+  if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+    // 一覧のサムネイル（object-contain）に合わせ、はみ出さないよう
+    // 縮小率はwidth/height双方に収まる小さい方を採用する
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(photoX, photoY, PHOTO_SIZE, PHOTO_SIZE);
+    const scale = Math.min(
+      PHOTO_SIZE / img.naturalWidth,
+      PHOTO_SIZE / img.naturalHeight,
+    );
+    const drawW = img.naturalWidth * scale;
+    const drawH = img.naturalHeight * scale;
+    const dx = photoX + (PHOTO_SIZE - drawW) / 2;
+    const dy = photoY + (PHOTO_SIZE - drawH) / 2;
     ctx.drawImage(img, dx, dy, drawW, drawH);
   } else {
+    ctx.fillStyle = "#fef3c7";
+    ctx.fillRect(photoX, photoY, PHOTO_SIZE, PHOTO_SIZE);
     ctx.textBaseline = "middle";
     ctx.font = "220px sans-serif";
-    ctx.fillText("🎁", photoX + photoSize / 2, photoY + photoSize / 2 + 15);
+    ctx.fillText("🎁", photoX + PHOTO_SIZE / 2, photoY + PHOTO_SIZE / 2 + 15);
     ctx.textBaseline = "alphabetic";
   }
   ctx.restore();
 
   // ごほうび名
   ctx.fillStyle = "#334155";
-  ctx.font = "bold 46px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
-  const titleLines = wrapText(ctx, rewardTitle, cardW - 100).slice(0, 2);
-  let cursorY = photoY + photoSize + 78;
-  for (const line of titleLines) {
-    ctx.fillText(line, CANVAS_WIDTH / 2, cursorY);
-    cursorY += 58;
-  }
+  ctx.font = TITLE_FONT;
+  layout.titleLines.forEach((line, i) => {
+    ctx.fillText(
+      line,
+      CANVAS_WIDTH / 2,
+      cardY + layout.titleStartY + i * TITLE_LINE_HEIGHT,
+    );
+  });
 
   // ポイントバッジ
-  cursorY += 6;
   const badgeText = `${requiredPoints}コ`;
-  ctx.font = "bold 38px sans-serif";
+  ctx.font = BADGE_FONT;
   const badgeTextWidth = ctx.measureText(badgeText).width;
   const badgeW = badgeTextWidth + 80;
-  const badgeH = 66;
   const badgeX = CANVAS_WIDTH / 2 - badgeW / 2;
+  const badgeY = cardY + layout.badgeY;
   ctx.fillStyle = "#fbbf24";
-  roundRect(ctx, badgeX, cursorY, badgeW, badgeH, badgeH / 2);
+  roundRect(ctx, badgeX, badgeY, badgeW, BADGE_H, BADGE_H / 2);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
   ctx.textBaseline = "middle";
-  ctx.fillText(badgeText, CANVAS_WIDTH / 2, cursorY + badgeH / 2 + 2);
+  ctx.fillText(badgeText, CANVAS_WIDTH / 2, badgeY + BADGE_H / 2 + 2);
   ctx.textBaseline = "alphabetic";
-  cursorY += badgeH;
 
-  // お知らせメッセージ（画面下部）
+  // 交換日時
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = DATE_FONT;
+  ctx.fillText(
+    formatRedeemedAt(redeemedAt),
+    CANVAS_WIDTH / 2,
+    cardY + layout.dateY,
+  );
+
+  // お知らせメッセージ
   ctx.fillStyle = "#475569";
-  ctx.font = "bold 40px 'M PLUS Rounded 1c', 'Hiragino Sans', sans-serif";
-  const message = `${learnerName}さんが${rewardTitle}を交換しました！`;
-  const messageLines = wrapText(ctx, message, cardW - 100);
-  const messageBottom = cardY + cardH - 60;
-  let messageY = messageBottom - (messageLines.length - 1) * 50;
-  // メッセージがごほうび名/バッジと重ならないよう下寄せしつつ最低限の余白を確保
-  messageY = Math.max(messageY, cursorY + 70);
-  for (const line of messageLines) {
-    ctx.fillText(line, CANVAS_WIDTH / 2, messageY);
-    messageY += 50;
-  }
+  ctx.font = MESSAGE_FONT;
+  layout.messageLines.forEach((line, i) => {
+    ctx.fillText(
+      line,
+      CANVAS_WIDTH / 2,
+      cardY + layout.messageStartY + i * MESSAGE_LINE_HEIGHT,
+    );
+  });
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), "image/png", 0.95);

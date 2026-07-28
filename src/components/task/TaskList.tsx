@@ -46,7 +46,9 @@ export const TaskList = ({
             今はタスクがありません
           </p>
           <p className="text-slate-400 text-xs leading-relaxed">
-            新しいタスクが追加されるまで待つか、タイマーを活用して作業を進めましょう
+            新しいタスクが追加されるまで待つか、
+            <br />
+            タイマーを活用して作業を進めましょう
           </p>
         </div>
       </div>

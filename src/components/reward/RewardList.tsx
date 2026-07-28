@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GripVertical } from "lucide-react";
+import { Gift, GripVertical } from "lucide-react";
 import type { Reward } from "../../types";
 import { RewardItem } from "./RewardItem";
 
@@ -38,10 +38,30 @@ export const RewardList = ({
     : rewards.filter((r) => r.is_active);
 
   if (visibleRewards.length === 0) {
+    if (isSupporter) {
+      return (
+        <p className="text-center text-amber-400 text-sm py-8">
+          ごほうびはまだありません
+        </p>
+      );
+    }
+
     return (
-      <p className="text-center text-amber-400 text-sm py-8">
-        ごほうびはまだありません
-      </p>
+      <div className="flex items-center justify-center min-h-[50vh] px-4">
+        <div className="flex flex-col items-center text-center gap-2 bg-white border border-amber-100 shadow-sm rounded-2xl px-8 py-10 max-w-xs w-full">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 text-amber-400 mb-1">
+            <Gift size={22} />
+          </div>
+          <p className="text-slate-600 font-bold text-sm">
+            ごほうびは準備中です
+          </p>
+          <p className="text-slate-400 text-xs leading-relaxed">
+            ごほうびが追加されるまで作業を進めて、
+            <br />
+            たくさんいちごをためましょう
+          </p>
+        </div>
+      </div>
     );
   }
 

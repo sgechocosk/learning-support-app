@@ -249,56 +249,56 @@ export const TaskForm = ({
         <div className="flex flex-col gap-1">
           <label className="text-xs text-sky-600 font-medium">カテゴリ</label>
           <TutorialFieldHint text="「勉強」「お手伝い」のように分類できます。「新規」から自分でカテゴリを追加することもできます。">
-          <div
-            className="flex flex-wrap gap-2 mb-1"
-            data-tutorial-id="tutorial-category-select"
-          >
-            {categories.map((c) => {
-              const isSelected = categoryId === c.id;
-              const categoryColor = c.color || "#38bdf8";
-
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => handleCategoryClick(c.id)}
-                  onTouchStart={() => startLongPress(c)}
-                  onTouchEnd={stopLongPress}
-                  onTouchMove={stopLongPress}
-                  onMouseDown={() => startLongPress(c)}
-                  onMouseUp={stopLongPress}
-                  onMouseLeave={stopLongPress}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    triggerHaptic();
-                    setCategoryToDelete(c);
-                  }}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors select-none"
-                  style={{
-                    backgroundColor: isSelected ? categoryColor : "white",
-                    color: isSelected ? "white" : categoryColor,
-                    borderColor: isSelected ? "transparent" : categoryColor,
-                    WebkitTouchCallout: "none",
-                  }}
-                >
-                  {c.name}
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic();
-                setCategoryToDelete(null);
-                setIsCreatingCategory(true);
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-sky-400 bg-white border border-dashed border-sky-300 rounded-full hover:bg-sky-50 transition-colors"
+            <div
+              className="flex flex-wrap gap-2 mb-1"
+              data-tutorial-id="tutorial-category-select"
             >
-              <Plus size={14} />
-              新規
-            </button>
-          </div>
+              {categories.map((c) => {
+                const isSelected = categoryId === c.id;
+                const categoryColor = c.color || "#38bdf8";
+
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleCategoryClick(c.id)}
+                    onTouchStart={() => startLongPress(c)}
+                    onTouchEnd={stopLongPress}
+                    onTouchMove={stopLongPress}
+                    onMouseDown={() => startLongPress(c)}
+                    onMouseUp={stopLongPress}
+                    onMouseLeave={stopLongPress}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      triggerHaptic();
+                      setCategoryToDelete(c);
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors select-none"
+                    style={{
+                      backgroundColor: isSelected ? categoryColor : "white",
+                      color: isSelected ? "white" : categoryColor,
+                      borderColor: isSelected ? "transparent" : categoryColor,
+                      WebkitTouchCallout: "none",
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setCategoryToDelete(null);
+                  setIsCreatingCategory(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-sky-400 bg-white border border-dashed border-sky-300 rounded-full hover:bg-sky-50 transition-colors"
+              >
+                <Plus size={14} />
+                新規
+              </button>
+            </div>
           </TutorialFieldHint>
 
           {/* カテゴリの新規作成・削除は、別レイヤーのモーダルを重ねず
@@ -457,7 +457,10 @@ export const TaskForm = ({
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
 
-        <TutorialFieldHint text="タップするとタスクが保存されます。" placement="top">
+        <TutorialFieldHint
+          text="タップするとタスクが保存されます。"
+          placement="top"
+        >
           <button
             type="submit"
             disabled={isSubmitting}

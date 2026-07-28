@@ -253,19 +253,15 @@ export const TaskItem = ({
     <>
       <style>{ANIMATION_STYLE}</style>
       <div
-        className={`group relative flex flex-row transition-all [perspective:1000px] ${
-          task.is_completed ? "opacity-60 grayscale-[0.2]" : ""
-        }`}
+        className={`group relative flex flex-row transition [perspective:1000px]`}
       >
         <div
           onClick={!isClaimed ? handleLeftClick : undefined}
           data-tutorial-id={isFirst ? "tutorial-task-card" : undefined}
           className={`p-3 sm:p-5 pl-12 sm:pl-16 flex-1 min-w-0 relative z-20 flex flex-col border-2 border-slate-100 shadow-sm rounded-l-2xl ${
             !isClaimed ? "border-r-0" : ""
-          } ${task.is_completed ? "bg-slate-50" : isToday ? "bg-orange-50" : "bg-white"} ${
-            !isClaimed
-              ? "cursor-pointer active:scale-[0.98] transition-all"
-              : ""
+          } ${task.is_completed ? "bg-slate-50 opacity-60 grayscale-[0.2]" : isToday ? "bg-orange-50" : "bg-white"} ${
+            !isClaimed ? "cursor-pointer active:scale-[0.98] transition" : ""
           }`}
         >
           <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
@@ -314,15 +310,15 @@ export const TaskItem = ({
           </div>
 
           {task.is_completed && !isClaimed && (
-            <p className="text-[10px] sm:text-xs font-bold text-slate-400 mt-1">
-              タップで完了を取り消す
+            <p className="absolute bottom-1.5 sm:bottom-2 left-12 sm:left-16 text-[10px] sm:text-xs font-bold text-slate-400">
+              もう一度タップで取り消し
             </p>
           )}
 
           {isClaimed && (
             <div className="absolute bottom-2 right-3 sm:bottom-3 sm:right-4 border-[3px] border-red-500/60 text-red-500/70 rounded-md px-2 py-1 transform -rotate-[15deg] z-30 pointer-events-none flex flex-col items-center justify-center bg-red-50/50 mix-blend-multiply">
               <span className="text-[8px] sm:text-[10px] font-black tracking-widest leading-none mb-0.5">
-                GET!
+                獲得！
               </span>
               <span className="text-sm sm:text-lg font-black leading-none">
                 +{task.reward_points}コ
@@ -350,7 +346,7 @@ export const TaskItem = ({
                     canClaimPoints ? "text-amber-600/80" : "text-sky-600/70"
                   }`}
                 >
-                  {canClaimPoints ? "Tap to claim" : "Reward"}
+                  {canClaimPoints ? "タップでゲット！" : "いちご報酬"}
                 </span>
 
                 <div className="flex flex-col items-center">

@@ -202,20 +202,22 @@ export const TaskForm = ({
 
   if (!isOpen && !isEditing) {
     return (
-      <TutorialFieldHint text="ここから新しいタスクを追加できます。">
-        <button
-          type="button"
-          data-tutorial-id="tutorial-new-task-btn"
-          onClick={() => {
-            triggerHaptic();
-            onToggle();
-          }}
-          className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
-        >
-          <Plus size={18} />
-          新しいタスクを作成
-        </button>
-      </TutorialFieldHint>
+      <div className="flex flex-col gap-2">
+        <TutorialFieldHint text="ここから新しいタスクを追加できます。">
+          <button
+            type="button"
+            data-tutorial-id="tutorial-new-task-btn"
+            onClick={() => {
+              triggerHaptic();
+              onToggle();
+            }}
+            className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
+          >
+            <Plus size={18} />
+            新しいタスクを作成
+          </button>
+        </TutorialFieldHint>
+      </div>
     );
   }
 

@@ -82,6 +82,32 @@ export interface Task {
   categories?: Category | null;
 }
 
+// Gemini APIによる自然言語タスク操作エージェントの結果1件分。
+// 「作成」「編集」「削除」のいずれかを表す。
+export type AiTaskOperationKind = "create" | "update" | "delete";
+
+export interface AiTaskOperationDraft {
+  operation: AiTaskOperationKind;
+  // update/delete: 解決済みの既存タスクID。解決できなかった場合は null。
+  taskId: string | null;
+  // update/delete: 対象として認識した元のタスク（表示確認用）。解決できなければ null。
+  matchedTask: Task | null;
+  // AIが操作を提案した理由（プレビュー表示用の短い説明）
+  reason: string | null;
+  // create: 新しいタイトル（必須） / update: 変更後タイトル（変更なければ null）
+  title: string | null;
+  // 変更後のカテゴリ名。create時はnullなら未分類、update時はnullなら変更なし
+  categoryName: string | null;
+  // update時、カテゴリを明示的に未分類へ戻す場合 true
+  clearCategory: boolean;
+  // 変更後のポイント。create時はnullならデフォルト値、update時はnullなら変更なし
+  rewardPoints: number | null;
+  // 変更後の予定日 "YYYY-MM-DD"。create時はnullなら未設定、update時はnullなら変更なし
+  scheduledAt: string | null;
+  // update時、予定日を明示的にクリアする場合 true
+  clearScheduledAt: boolean;
+}
+
 export interface PointEvent {
   id: string;
   pair_id: string;

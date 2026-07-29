@@ -22,6 +22,14 @@ interface TaskContextType {
       scheduledAt?: string | null;
     },
   ) => Promise<{ error: string | null }>;
+  createTasksBulk: (
+    inputs: {
+      title: string;
+      categoryId: string | null;
+      rewardPoints: number;
+      scheduledAt?: string | null;
+    }[],
+  ) => Promise<{ error: string | null; insertedCount: number }>;
   deleteTask: (taskId: string) => Promise<{ error: string | null }>;
   completeTask: (taskId: string) => Promise<{ error: string | null }>;
   claimTaskPoints: (taskId: string) => Promise<{ error: string | null }>;
@@ -116,6 +124,28 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     return { error: error?.message ?? null };
   };
 
+  const createTasksBulk: TaskContextType["createTasksBulk"] = async (
+    inputs,
+  ) => {
+    if (!pairId) return { error: "pair not found", insertedCount: 0 };
+    if (inputs.length === 0) return { error: null, insertedCount: 0 };
+
+    const rows = inputs.map((input) => ({
+      pair_id: pairId,
+      category_id: input.categoryId,
+      title: input.title,
+      reward_points: input.rewardPoints,
+      scheduled_at: input.scheduledAt ?? null,
+    }));
+
+    const { error } = await supabase.from("tasks").insert(rows);
+    if (!error) await fetchTasks(true);
+    return {
+      error: error?.message ?? null,
+      insertedCount: error ? 0 : rows.length,
+    };
+  };
+
   const updateTask: TaskContextType["updateTask"] = async (taskId, updates) => {
     const payload: {
       title?: string;
@@ -181,6 +211,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         refreshTasks: () => fetchTasks(true),
         createTask,
+        createTasksBulk,
         updateTask,
         deleteTask,
         completeTask,

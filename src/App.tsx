@@ -24,7 +24,50 @@ import { TaskProvider } from "./contexts/TaskContext";
 import { RewardProvider } from "./contexts/RewardContext";
 import { TimerSettingsProvider } from "./contexts/TimerSettingsContext";
 import { PointEventsProvider } from "./contexts/PointEventsContext";
+import { AiTaskAgentProvider } from "./contexts/AiTaskAgentContext";
+import { useAiTaskAgentContext } from "./contexts/AiTaskAgentContext";
+import { AiTaskInputBar } from "./components/task/AiTaskInputBar";
+import { AiTaskReviewBar } from "./components/task/AiTaskReviewBar";
 import { useProfile } from "./hooks/useProfile";
+
+// タスクタブ表示中の支援者にのみ、AIへの指示入力欄とレビュー用バーを表示する。
+// TabContent(スライドアニメーションでtransformが付与される)の外側・
+// アプリ全体のfixedルート直下に置くことで、
+// 1) transformを持つ祖先の影響を受けず常に画面下端に固定される
+// 2) タブ切り替えでTask.tsxがアンマウントされても、この状態はAiTaskAgentProvider側に残ったまま消えない
+export function SupporterAiTaskDock({ activeTab }: { activeTab: number }) {
+  const { profile } = useProfile();
+  const {
+    isReviewActive,
+    isGenerating,
+    submit,
+    cancelReview,
+    executeReview,
+    errorMsg,
+    isSubmitting,
+    includedCount,
+  } = useAiTaskAgentContext();
+
+  const isSupporter = profile?.role === "supporter";
+  // タスクタブ(index: 2)を表示している時だけ見せる
+  if (!isSupporter || activeTab !== 2) return null;
+
+  return (
+    <>
+      <AiTaskInputBar onSubmit={submit} isGenerating={isGenerating} />
+      {!isGenerating && (
+        <AiTaskReviewBar
+          isOpen={isReviewActive}
+          includedCount={includedCount}
+          errorMsg={errorMsg}
+          isSubmitting={isSubmitting}
+          onCancel={cancelReview}
+          onExecute={executeReview}
+        />
+      )}
+    </>
+  );
+}
 
 // ログイン後の画面。
 // 支援者(role: "supporter")でまだペアが存在しない場合は、
@@ -156,8 +199,9 @@ export default function App() {
             <RewardProvider>
               <TimerSettingsProvider>
                 <AuthenticatedGate>
-                  <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-                    <style>{`
+                  <AiTaskAgentProvider>
+                    <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+                      <style>{`
           :root {
             --click-x: ${clickPos.x}px;
             --click-y: ${clickPos.y}px;
@@ -172,43 +216,48 @@ export default function App() {
           .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
         `}</style>
 
-                    <Header onOpenOverlay={openOverlay} />
+                      <Header onOpenOverlay={openOverlay} />
 
-                    <div className="flex-1 overflow-hidden relative bg-gray-50">
-                      <TabContent
-                        ref={scrollContainerRef}
-                        activeTab={activeTab}
-                        slideDirection={slideDirection}
-                      >
-                        {activeTab === 0 && <Home />}
-                        {activeTab === 1 && <Calendar />}
-                        {activeTab === 2 && <Task />}
-                        {activeTab === 3 && <Timer />}
-                        {activeTab === 4 && <Reward />}
-                      </TabContent>
+                      <div className="flex-1 overflow-hidden relative bg-gray-50">
+                        <TabContent
+                          ref={scrollContainerRef}
+                          activeTab={activeTab}
+                          slideDirection={slideDirection}
+                        >
+                          {activeTab === 0 && <Home />}
+                          {activeTab === 1 && <Calendar />}
+                          {activeTab === 2 && <Task />}
+                          {activeTab === 3 && <Timer />}
+                          {activeTab === 4 && <Reward />}
+                        </TabContent>
 
-                      {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
+                        {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
                     オーバーレイを表示するためのポータルルート。
                     中身が無い時はクリックを透過させ、下のコンテンツを操作可能にする。 */}
-                      <div
-                        id="modal-portal-root"
-                        className="absolute inset-0 pointer-events-none z-10"
+                        <div
+                          id="modal-portal-root"
+                          className="absolute inset-0 pointer-events-none z-10"
+                        />
+                      </div>
+
+                      {/* TabContent(transformが付与される)の外側に置くことで、
+                      画面下端への固定位置が常に正しく保たれ、タブ切り替えでも状態が消えない */}
+                      <SupporterAiTaskDock activeTab={activeTab} />
+
+                      <Footer
+                        activeTab={activeTab}
+                        isMoving={isMoving}
+                        onTabChange={handleTabChange}
+                      />
+
+                      <Overlay
+                        type={overlayType}
+                        isClosing={isOverlayClosing}
+                        lastSignInAt={lastSignInAt}
+                        onClose={closeOverlay}
                       />
                     </div>
-
-                    <Footer
-                      activeTab={activeTab}
-                      isMoving={isMoving}
-                      onTabChange={handleTabChange}
-                    />
-
-                    <Overlay
-                      type={overlayType}
-                      isClosing={isOverlayClosing}
-                      lastSignInAt={lastSignInAt}
-                      onClose={closeOverlay}
-                    />
-                  </div>
+                  </AiTaskAgentProvider>
                 </AuthenticatedGate>
               </TimerSettingsProvider>
             </RewardProvider>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Icon, X, Plus } from "lucide-react";
+import { Icon, X, Plus, Sparkles } from "lucide-react";
 import { strawberry } from "@lucide/lab";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
@@ -7,6 +7,7 @@ import { useHaptic } from "../../hooks/useHaptic";
 import { Modal } from "../ui/Modal";
 import { TutorialFieldHint } from "../../tutorial/TutorialFieldHint";
 import { useSupporterTutorialContext } from "../../tutorial/SupporterTutorialContext";
+import { AiTaskAgentModal } from "./AiTaskAgentModal";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -59,6 +60,7 @@ export const TaskForm = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showAiModal, setShowAiModal] = useState(false);
 
   const isEditing = !!editingTask;
 
@@ -202,20 +204,41 @@ export const TaskForm = ({
 
   if (!isOpen && !isEditing) {
     return (
-      <TutorialFieldHint text="ここから新しいタスクを追加できます。">
-        <button
-          type="button"
-          data-tutorial-id="tutorial-new-task-btn"
-          onClick={() => {
-            triggerHaptic();
-            onToggle();
-          }}
-          className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
-        >
-          <Plus size={18} />
-          新しいタスクを作成
-        </button>
-      </TutorialFieldHint>
+      <div className="flex flex-col gap-2">
+        <TutorialFieldHint text="ここから新しいタスクを追加できます。">
+          <button
+            type="button"
+            data-tutorial-id="tutorial-new-task-btn"
+            onClick={() => {
+              triggerHaptic();
+              onToggle();
+            }}
+            className="flex items-center justify-center gap-2 w-full py-3 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors"
+          >
+            <Plus size={18} />
+            新しいタスクを作成
+          </button>
+        </TutorialFieldHint>
+
+        <TutorialFieldHint text="やってほしいことを文章で入力するだけで、AIが新しいタスクの作成だけでなく、既存タスクの編集・削除もまとめて提案してくれます。">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic();
+              setShowAiModal(true);
+            }}
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-white text-sky-600 font-semibold rounded-xl border border-sky-200 shadow-sm hover:bg-sky-50 active:bg-sky-100 transition-colors"
+          >
+            <Sparkles size={16} />
+            AIにタスクをお願いする
+          </button>
+        </TutorialFieldHint>
+
+        <AiTaskAgentModal
+          isOpen={showAiModal}
+          onClose={() => setShowAiModal(false)}
+        />
+      </div>
     );
   }
 

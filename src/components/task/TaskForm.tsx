@@ -16,6 +16,7 @@ interface TaskFormProps {
     categoryId: string | null;
     rewardPoints: number;
     scheduledAt?: string | null;
+    isDaily?: boolean;
   }) => Promise<{ error: string | null }>;
   editingTask?: Task | null;
   onCancelEdit?: () => void;
@@ -47,6 +48,7 @@ export const TaskForm = ({
   const [categoryId, setCategoryId] = useState<string>("");
   const [rewardPoints, setRewardPoints] = useState<number | "">(10);
   const [scheduledAt, setScheduledAt] = useState<string>("");
+  const [isDaily, setIsDaily] = useState(false);
 
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -71,6 +73,7 @@ export const TaskForm = ({
       setCategoryId(editingTask.category_id ?? "");
       setRewardPoints(editingTask.reward_points);
       setScheduledAt(formatDateForInput(editingTask.scheduled_at));
+      setIsDaily(editingTask.is_daily);
     }
   }, [editingTask]);
 
@@ -83,11 +86,17 @@ export const TaskForm = ({
     };
   }, [isEditing]);
 
+  useEffect(() => {
+    // 毎日タスクは特定の予定日を持たないため、チェックしたら日付をクリアする
+    if (isDaily) setScheduledAt("");
+  }, [isDaily]);
+
   const resetForm = () => {
     setTitle("");
     setCategoryId("");
     setRewardPoints(10);
     setScheduledAt("");
+    setIsDaily(false);
     setIsCreatingCategory(false);
     setNewCategoryName("");
     setErrorMsg(null);
@@ -181,10 +190,13 @@ export const TaskForm = ({
     const { error } = await onSubmit({
       title: title.trim(),
       categoryId: categoryId || null,
-      scheduledAt: scheduledAt
-        ? new Date(`${scheduledAt}T00:00:00`).toISOString()
-        : null,
+      scheduledAt: isDaily
+        ? null
+        : scheduledAt
+          ? new Date(`${scheduledAt}T00:00:00`).toISOString()
+          : null,
       rewardPoints: rewardPoints === "" ? 0 : rewardPoints,
+      isDaily,
     });
 
     setIsSubmitting(false);
@@ -403,21 +415,48 @@ export const TaskForm = ({
           />
         </TutorialFieldHint>
 
-        {/* 予定日（日付入力用のプレースホルダーハック） */}
-        <input
-          type="date"
-          value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
-          className={`border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 ${!scheduledAt ? "text-slate-400" : "text-slate-900"}`}
-          // 未入力時に「予定日（任意）」と表示させるための疑似プレースホルダー
-          data-placeholder="予定日（任意）"
-          style={
-            {
-              // input[type="date"]が空の時にdata-placeholderの文字を出すCSS小技
-              // (※ブラウザ依存があるため、Tailwindのみで完全対応は難しいですが、実用範囲です)
-            }
-          }
-        />
+        {/* 予定日（日付入力用のプレースホルダーハック）＋ 毎日タスクのチェック */}
+        <div className="flex items-center gap-2">
+          {isDaily ? (
+            <div className="flex-1 border border-sky-100 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-400 select-none">
+              毎日
+            </div>
+          ) : (
+            <input
+              type="date"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              className={`flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 ${!scheduledAt ? "text-slate-400" : "text-slate-900"}`}
+              // 未入力時に「予定日（任意）」と表示させるための疑似プレースホルダー
+              data-placeholder="予定日（任意）"
+              style={
+                {
+                  // input[type="date"]が空の時にdata-placeholderの文字を出すCSS小技
+                  // (※ブラウザ依存があるため、Tailwindのみで完全対応は難しいですが、実用範囲です)
+                }
+              }
+            />
+          )}{" "}
+          <TutorialFieldHint text="チェックすると、毎日午前4時に完了状態がリセットされて復活する「毎日タスク」になります。">
+            <label
+              className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-lg border border-sky-200 text-xs font-semibold text-sky-700 cursor-pointer select-none"
+              style={{
+                backgroundColor: isDaily ? "#e0f2fe" : "white",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isDaily}
+                onChange={(e) => {
+                  triggerHaptic();
+                  setIsDaily(e.target.checked);
+                }}
+                className="w-4 h-4 accent-sky-500"
+              />
+              毎日タスク
+            </label>
+          </TutorialFieldHint>
+        </div>
         <style
           dangerouslySetInnerHTML={{
             __html: `

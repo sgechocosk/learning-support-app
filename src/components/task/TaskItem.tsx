@@ -10,6 +10,7 @@ import {
   Gift,
   EyeOff,
   Undo2,
+  Repeat,
 } from "lucide-react";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
@@ -173,9 +174,9 @@ export const TaskItem = ({
         }`}
       >
         <div className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-1 rounded-md shrink-0">
-          <Calendar size={12} />
+          {task.is_daily ? <Repeat size={12} /> : <Calendar size={12} />}
           <span className="text-[10px] font-bold tracking-wider whitespace-nowrap">
-            {formattedDate}
+            {task.is_daily ? "毎日" : formattedDate}
           </span>
         </div>
 
@@ -311,9 +312,13 @@ export const TaskItem = ({
 
           <div className="flex flex-wrap justify-between items-center gap-2 mb-2 sm:mb-3">
             <div className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-              <Calendar size={12} className="sm:w-[14px] sm:h-[14px]" />
+              {task.is_daily ? (
+                <Repeat size={12} className="sm:w-[14px] sm:h-[14px]" />
+              ) : (
+                <Calendar size={12} className="sm:w-[14px] sm:h-[14px]" />
+              )}
               <span className="text-[10px] sm:text-xs font-bold tracking-wider">
-                {formattedDate}
+                {task.is_daily ? "毎日" : formattedDate}
               </span>
             </div>
 

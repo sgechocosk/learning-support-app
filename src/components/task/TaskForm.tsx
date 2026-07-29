@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Icon, X, Plus, Sparkles } from "lucide-react";
+import { Icon, X, Plus } from "lucide-react";
 import { strawberry } from "@lucide/lab";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
@@ -7,7 +7,6 @@ import { useHaptic } from "../../hooks/useHaptic";
 import { Modal } from "../ui/Modal";
 import { TutorialFieldHint } from "../../tutorial/TutorialFieldHint";
 import { useSupporterTutorialContext } from "../../tutorial/SupporterTutorialContext";
-import { AiTaskAgentModal } from "./AiTaskAgentModal";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -60,7 +59,6 @@ export const TaskForm = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showAiModal, setShowAiModal] = useState(false);
 
   const isEditing = !!editingTask;
 
@@ -219,25 +217,6 @@ export const TaskForm = ({
             新しいタスクを作成
           </button>
         </TutorialFieldHint>
-
-        <TutorialFieldHint text="やってほしいことを文章で入力するだけで、AIが新しいタスクの作成だけでなく、既存タスクの編集・削除もまとめて提案してくれます。">
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic();
-              setShowAiModal(true);
-            }}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-white text-sky-600 font-semibold rounded-xl border border-sky-200 shadow-sm hover:bg-sky-50 active:bg-sky-100 transition-colors"
-          >
-            <Sparkles size={16} />
-            AIにタスクをお願いする
-          </button>
-        </TutorialFieldHint>
-
-        <AiTaskAgentModal
-          isOpen={showAiModal}
-          onClose={() => setShowAiModal(false)}
-        />
       </div>
     );
   }

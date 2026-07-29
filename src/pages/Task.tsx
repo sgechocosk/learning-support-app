@@ -5,6 +5,7 @@ import { useTask } from "../hooks/useTask";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { TaskForm } from "../components/task/TaskForm";
 import { TaskList } from "../components/task/TaskList";
+import { useAiTaskAgentContext } from "../contexts/AiTaskAgentContext";
 import { PullToRefreshIndicator } from "../components/ui/PullToRefreshIndicator";
 import type { Task as TaskType } from "../types";
 import { TaskTutorial } from "../tutorial/TaskTutorial";
@@ -32,6 +33,17 @@ export default function Task() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
   const supporterTutorial = useSupporterTutorial();
+
+  // 画面下の常設入力欄・レビュー用バーはApp.tsx側（タブ切り替えの影響を受けない場所）に
+  // 常設されており、その状態はAiTaskAgentContext経由で共有される。
+  const {
+    isReviewActive: aiReviewActive,
+    categories: aiCategories,
+    creates: aiCreates,
+    operationsByTaskId: aiOperationsByTaskId,
+    updateOperation: handleAiOperationChange,
+    removeOperation: handleAiOperationRemove,
+  } = useAiTaskAgentContext();
 
   // 削除モーダル用の状態管理
   const [deletingTask, setDeletingTask] = useState<{
@@ -85,7 +97,10 @@ export default function Task() {
 
   return (
     <>
-      <div ref={containerRef} className="flex flex-col gap-1">
+      <div
+        ref={containerRef}
+        className={`flex flex-col gap-1 ${isSupporter ? "pb-46" : ""}`}
+      >
         <PullToRefreshIndicator
           pullDistance={pullDistance}
           isRefreshing={isRefreshing}
@@ -123,6 +138,14 @@ export default function Task() {
               onClaimPoints={claimTaskPoints}
               onEdit={(task) => setEditingTask(task)}
               onDelete={handleDeleteRequest}
+              aiCreates={aiReviewActive ? aiCreates : []}
+              aiOperationsByTaskId={
+                aiReviewActive ? aiOperationsByTaskId : undefined
+              }
+              aiCategories={aiCategories}
+              isAiReviewActive={aiReviewActive}
+              onAiOperationChange={handleAiOperationChange}
+              onAiOperationRemove={handleAiOperationRemove}
             />
           </SupporterTutorialContext.Provider>
         )}

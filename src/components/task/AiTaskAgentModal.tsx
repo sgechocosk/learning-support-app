@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Icon,
   Sparkles,
@@ -10,7 +10,6 @@ import {
   Pencil,
 } from "lucide-react";
 import { strawberry } from "@lucide/lab";
-import { Modal } from "../ui/Modal";
 import { NumberStepper } from "../ui/NumberStepper";
 import { useTask } from "../../hooks/useTask";
 import { useCategory } from "../../hooks/useCategory";
@@ -21,6 +20,10 @@ import type { AiTaskOperationDraft, AiTaskOperationKind } from "../../types";
 interface AiTaskAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // 画面下の常設入力欄から呼び出された場合に渡される、送信済みのテキスト。
+  // 渡された場合はモーダルを開いた直後に自動で生成を実行し、プレビューへ進む。
+  initialInputText?: string;
+  autoGenerate?: boolean;
 }
 
 // カテゴリを新規作成する場合の自動配色。既存の新規作成UI(TaskForm)の
@@ -66,6 +69,8 @@ type Phase = "input" | "preview";
 export const AiTaskAgentModal = ({
   isOpen,
   onClose,
+  initialInputText,
+  autoGenerate,
 }: AiTaskAgentModalProps) => {
   const triggerHaptic = useHaptic();
   const { tasks, createTasksBulk, updateTask, deleteTask } = useTask();
@@ -92,6 +97,21 @@ export const AiTaskAgentModal = ({
     resetAll();
     onClose();
   };
+
+  // 常設入力欄から開かれた場合、開いた直後に一度だけ自動で生成を実行する。
+  const autoTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!isOpen) {
+      autoTriggeredRef.current = false;
+      return;
+    }
+    if (autoGenerate && initialInputText && !autoTriggeredRef.current) {
+      autoTriggeredRef.current = true;
+      setInputText(initialInputText);
+      void handleGenerate(initialInputText);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, autoGenerate, initialInputText]);
 
   const findCategoryIdByName = (name: string) =>
     categories.find((c) => c.name === name)?.id ?? null;
@@ -180,9 +200,10 @@ export const AiTaskAgentModal = ({
     };
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (textOverride?: string) => {
     triggerHaptic();
-    if (!inputText.trim()) {
+    const text = textOverride ?? inputText;
+    if (!text.trim()) {
       setErrorMsg("お願いしたい内容を入力してください");
       return;
     }
@@ -191,7 +212,7 @@ export const AiTaskAgentModal = ({
 
     try {
       const results = await generateTaskOperations(
-        inputText,
+        text,
         categories.map((c) => ({ id: c.id, name: c.name })),
         tasks,
       );
@@ -384,222 +405,98 @@ export const AiTaskAgentModal = ({
     </div>
   );
 
+  if (!isOpen) return null;
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      overlayClassName="z-40"
-      contentClassName="w-full max-w-lg max-h-[85vh] flex flex-col"
-    >
-      <div className="bg-white rounded-xl shadow-xl p-4 flex flex-col gap-3 overflow-hidden">
-        <div className="flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-sky-800 flex items-center gap-1.5">
-            <Sparkles size={18} className="text-sky-400" />
-            AIにタスクをお願いする
-          </h3>
+    <div className="bg-white rounded-xl shadow-md border border-sky-100 p-4 flex flex-col gap-3 overflow-hidden">
+      <div className="flex items-center justify-between shrink-0">
+        <h3 className="font-bold text-sky-800 flex items-center gap-1.5">
+          <Sparkles size={18} className="text-sky-400" />
+          AIにタスクをお願いする
+        </h3>
+        <button
+          type="button"
+          onClick={handleClose}
+          className="p-1 rounded-full hover:bg-sky-50 text-sky-400"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {phase === "input" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            やってほしいことを、文章のまま自由に入力してください。新しいタスクの追加だけでなく、「〇〇の期限を明日に変更して」「△△はもういらないから削除して」のような既存タスクの編集・削除もまとめてお願いできます。
+          </p>
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder={
+              "例）明日までに漢字ドリルを2ページお願い。あと部屋の片付けの期限を今週金曜に変更して、もう使わない「自転車の練習」は削除して。"
+            }
+            rows={5}
+            autoFocus
+            className="w-full border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 resize-none"
+          />
+
+          {errorMsg && (
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              <AlertCircle size={14} className="shrink-0" />
+              {errorMsg}
+            </p>
+          )}
+
           <button
             type="button"
-            onClick={handleClose}
-            className="p-1 rounded-full hover:bg-sky-50 text-sky-400"
+            onClick={() => handleGenerate()}
+            disabled={isGenerating}
+            className="w-full py-2.5 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            <X size={18} />
+            {isGenerating ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                内容を考え中...
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                内容を確認する
+              </>
+            )}
           </button>
         </div>
+      )}
 
-        {phase === "input" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-xs text-slate-500 leading-relaxed">
-              やってほしいことを、文章のまま自由に入力してください。新しいタスクの追加だけでなく、「〇〇の期限を明日に変更して」「△△はもういらないから削除して」のような既存タスクの編集・削除もまとめてお願いできます。
-            </p>
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={
-                "例）明日までに漢字ドリルを2ページお願い。あと部屋の片付けの期限を今週金曜に変更して、もう使わない「自転車の練習」は削除して。"
-              }
-              rows={5}
-              autoFocus
-              className="w-full border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 resize-none"
-            />
+      {phase === "preview" && (
+        <div className="flex flex-col gap-3 overflow-hidden">
+          <p className="text-xs text-slate-500">
+            内容を確認・編集してから実行してください。削除は既定でチェックが外れています。必要な項目だけチェックを入れてください。
+          </p>
 
-            {errorMsg && (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle size={14} className="shrink-0" />
-                {errorMsg}
+          <div className="flex flex-col gap-4 overflow-y-auto pr-1 -mr-1 max-h-[55vh]">
+            {operations.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4">
+                候補がありません
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full py-2.5 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  内容を考え中...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} />
-                  内容を確認する
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {phase === "preview" && (
-          <div className="flex flex-col gap-3 overflow-hidden">
-            <p className="text-xs text-slate-500">
-              内容を確認・編集してから実行してください。削除は既定でチェックが外れています。必要な項目だけチェックを入れてください。
-            </p>
-
-            <div className="flex flex-col gap-4 overflow-y-auto pr-1 -mr-1 max-h-[55vh]">
-              {operations.length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-4">
-                  候補がありません
-                </p>
-              )}
-
-              {/* 新規作成 */}
-              {creates.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-xs font-bold text-sky-700 flex items-center gap-1">
-                    <Plus size={14} />
-                    新規作成（{creates.length}件）
-                  </h4>
-                  {creates.map((o) => (
-                    <div
-                      key={o.key}
-                      className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors ${
-                        o.included
-                          ? "bg-sky-50/60 border-sky-100"
-                          : "bg-slate-50 border-slate-100 opacity-60"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={o.included}
-                          onChange={(e) =>
-                            updateOperation(o.key, {
-                              included: e.target.checked,
-                            })
-                          }
-                          className="mt-2 w-4 h-4 accent-sky-400 shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={o.title}
-                          onChange={(e) =>
-                            updateOperation(o.key, { title: e.target.value })
-                          }
-                          placeholder="タスク名"
-                          className="flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeOperation(o.key)}
-                          className="p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-400 transition-colors shrink-0"
-                          aria-label="この候補を削除"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      {o.reason && (
-                        <p className="text-[11px] text-sky-500 pl-6">
-                          {o.reason}
-                        </p>
-                      )}
-                      {editableFieldsRow(o)}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 編集 */}
-              {updates.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-xs font-bold text-amber-700 flex items-center gap-1">
-                    <Pencil size={14} />
-                    編集（{updates.length}件）
-                  </h4>
-                  {updates.map((o) => (
-                    <div
-                      key={o.key}
-                      className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors ${
-                        o.included
-                          ? "bg-amber-50/60 border-amber-100"
-                          : "bg-slate-50 border-slate-100 opacity-60"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={o.included}
-                          onChange={(e) =>
-                            updateOperation(o.key, {
-                              included: e.target.checked,
-                            })
-                          }
-                          className="mt-2 w-4 h-4 accent-amber-400 shrink-0"
-                        />
-                        <div className="flex-1 flex flex-col gap-1">
-                          {o.originalTitle && o.originalTitle !== o.title && (
-                            <p className="text-[11px] text-slate-400 line-through">
-                              {o.originalTitle}
-                            </p>
-                          )}
-                          <input
-                            type="text"
-                            value={o.title}
-                            onChange={(e) =>
-                              updateOperation(o.key, {
-                                title: e.target.value,
-                              })
-                            }
-                            placeholder="タスク名"
-                            className="border border-amber-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeOperation(o.key)}
-                          className="p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-400 transition-colors shrink-0"
-                          aria-label="この候補を削除"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      {o.reason && (
-                        <p className="text-[11px] text-amber-600 pl-6">
-                          {o.reason}
-                        </p>
-                      )}
-                      {editableFieldsRow(o)}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 削除 */}
-              {deletes.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-xs font-bold text-red-600 flex items-center gap-1">
-                    <Trash2 size={14} />
-                    削除（{deletes.length}件）
-                  </h4>
-                  {deletes.map((o) => (
-                    <div
-                      key={o.key}
-                      className={`flex items-start gap-2 p-3 rounded-lg border transition-colors ${
-                        o.included
-                          ? "bg-red-50 border-red-100"
-                          : "bg-slate-50 border-slate-100 opacity-70"
-                      }`}
-                    >
+            {/* 新規作成 */}
+            {creates.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-xs font-bold text-sky-700 flex items-center gap-1">
+                  <Plus size={14} />
+                  新規作成（{creates.length}件）
+                </h4>
+                {creates.map((o) => (
+                  <div
+                    key={o.key}
+                    className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors ${
+                      o.included
+                        ? "bg-sky-50/60 border-sky-100"
+                        : "bg-slate-50 border-slate-100 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
                       <input
                         type="checkbox"
                         checked={o.included}
@@ -608,63 +505,182 @@ export const AiTaskAgentModal = ({
                             included: e.target.checked,
                           })
                         }
-                        className="mt-1 w-4 h-4 accent-red-400 shrink-0"
+                        className="mt-2 w-4 h-4 accent-sky-400 shrink-0"
                       />
-                      <div className="flex-1 flex flex-col gap-0.5">
-                        <p className="text-sm font-bold text-slate-800">
-                          「{o.originalTitle}」を削除する
-                        </p>
-                        {o.reason && (
-                          <p className="text-[11px] text-red-500">{o.reason}</p>
-                        )}
-                        <p className="text-[11px] text-slate-400">
-                          一度削除すると元に戻せません。
-                        </p>
-                      </div>
+                      <input
+                        type="text"
+                        value={o.title}
+                        onChange={(e) =>
+                          updateOperation(o.key, { title: e.target.value })
+                        }
+                        placeholder="タスク名"
+                        className="flex-1 border border-sky-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeOperation(o.key)}
+                        className="p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-400 transition-colors shrink-0"
+                        aria-label="この候補を削除"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {errorMsg && (
-              <p className="text-xs text-red-500 flex items-center gap-1 shrink-0">
-                <AlertCircle size={14} className="shrink-0" />
-                {errorMsg}
-              </p>
+                    {o.reason && (
+                      <p className="text-[11px] text-sky-500 pl-6">
+                        {o.reason}
+                      </p>
+                    )}
+                    {editableFieldsRow(o)}
+                  </div>
+                ))}
+              </div>
             )}
 
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic();
-                  setPhase("input");
-                  setErrorMsg(null);
-                }}
-                className="flex-1 py-2.5 text-sm font-semibold bg-white text-sky-600 rounded-xl border border-sky-200 hover:bg-sky-50 transition-colors"
-              >
-                入力に戻る
-              </button>
-              <button
-                type="button"
-                onClick={handleExecute}
-                disabled={isSubmitting || includedCount === 0}
-                className="flex-[2] py-2.5 text-sm font-semibold bg-sky-400 text-white rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    実行中...
-                  </>
-                ) : (
-                  `選択した${includedCount}件を実行する`
-                )}
-              </button>
-            </div>
+            {/* 編集 */}
+            {updates.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-xs font-bold text-amber-700 flex items-center gap-1">
+                  <Pencil size={14} />
+                  編集（{updates.length}件）
+                </h4>
+                {updates.map((o) => (
+                  <div
+                    key={o.key}
+                    className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors ${
+                      o.included
+                        ? "bg-amber-50/60 border-amber-100"
+                        : "bg-slate-50 border-slate-100 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={o.included}
+                        onChange={(e) =>
+                          updateOperation(o.key, {
+                            included: e.target.checked,
+                          })
+                        }
+                        className="mt-2 w-4 h-4 accent-amber-400 shrink-0"
+                      />
+                      <div className="flex-1 flex flex-col gap-1">
+                        {o.originalTitle && o.originalTitle !== o.title && (
+                          <p className="text-[11px] text-slate-400 line-through">
+                            {o.originalTitle}
+                          </p>
+                        )}
+                        <input
+                          type="text"
+                          value={o.title}
+                          onChange={(e) =>
+                            updateOperation(o.key, {
+                              title: e.target.value,
+                            })
+                          }
+                          placeholder="タスク名"
+                          className="border border-amber-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeOperation(o.key)}
+                        className="p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-400 transition-colors shrink-0"
+                        aria-label="この候補を削除"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    {o.reason && (
+                      <p className="text-[11px] text-amber-600 pl-6">
+                        {o.reason}
+                      </p>
+                    )}
+                    {editableFieldsRow(o)}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 削除 */}
+            {deletes.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-xs font-bold text-red-600 flex items-center gap-1">
+                  <Trash2 size={14} />
+                  削除（{deletes.length}件）
+                </h4>
+                {deletes.map((o) => (
+                  <div
+                    key={o.key}
+                    className={`flex items-start gap-2 p-3 rounded-lg border transition-colors ${
+                      o.included
+                        ? "bg-red-50 border-red-100"
+                        : "bg-slate-50 border-slate-100 opacity-70"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={o.included}
+                      onChange={(e) =>
+                        updateOperation(o.key, {
+                          included: e.target.checked,
+                        })
+                      }
+                      className="mt-1 w-4 h-4 accent-red-400 shrink-0"
+                    />
+                    <div className="flex-1 flex flex-col gap-0.5">
+                      <p className="text-sm font-bold text-slate-800">
+                        「{o.originalTitle}」を削除する
+                      </p>
+                      {o.reason && (
+                        <p className="text-[11px] text-red-500">{o.reason}</p>
+                      )}
+                      <p className="text-[11px] text-slate-400">
+                        一度削除すると元に戻せません。
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    </Modal>
+
+          {errorMsg && (
+            <p className="text-xs text-red-500 flex items-center gap-1 shrink-0">
+              <AlertCircle size={14} className="shrink-0" />
+              {errorMsg}
+            </p>
+          )}
+
+          <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setPhase("input");
+                setErrorMsg(null);
+              }}
+              className="flex-1 py-2.5 text-sm font-semibold bg-white text-sky-600 rounded-xl border border-sky-200 hover:bg-sky-50 transition-colors"
+            >
+              入力に戻る
+            </button>
+            <button
+              type="button"
+              onClick={handleExecute}
+              disabled={isSubmitting || includedCount === 0}
+              className="flex-[2] py-2.5 text-sm font-semibold bg-sky-400 text-white rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  実行中...
+                </>
+              ) : (
+                `選択した${includedCount}件を実行する`
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

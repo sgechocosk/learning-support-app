@@ -43,6 +43,8 @@ interface TaskItemProps {
   onClaimPoints: (taskId: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  // AIの提案をレビュー中は、対象外の既存タスクの編集・削除を一時的に禁止する
+  locked?: boolean;
 }
 
 export const TaskItem = ({
@@ -53,6 +55,7 @@ export const TaskItem = ({
   onClaimPoints,
   onEdit,
   onDelete,
+  locked = false,
 }: TaskItemProps) => {
   const triggerHaptic = useHaptic();
   const stubRef = useRef<HTMLDivElement>(null);
@@ -197,7 +200,7 @@ export const TaskItem = ({
 
         {!task.is_completed && (
           <div className="flex gap-1 shrink-0">
-            {isFirst ? (
+            {isFirst && !locked ? (
               <TutorialFieldHint text="鉛筆アイコンで編集、ゴミ箱アイコンで削除ができます。">
                 <div className="flex gap-1">
                   <button
@@ -225,20 +228,34 @@ export const TaskItem = ({
             ) : (
               <>
                 <button
+                  disabled={locked}
+                  title={
+                    locked ? "AIの提案を確認中は編集できません" : undefined
+                  }
                   onClick={() => {
+                    if (locked) return;
                     triggerHaptic();
                     onEdit(task);
                   }}
-                  className="p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors"
+                  className={`p-1.5 rounded-full bg-slate-100 text-sky-500 transition-colors ${
+                    locked ? "opacity-30 cursor-not-allowed" : ""
+                  }`}
                 >
                   <Pencil size={24} />
                 </button>
                 <button
+                  disabled={locked}
+                  title={
+                    locked ? "AIの提案を確認中は削除できません" : undefined
+                  }
                   onClick={() => {
+                    if (locked) return;
                     triggerHaptic();
                     onDelete(task.id);
                   }}
-                  className="p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors"
+                  className={`p-1.5 rounded-full bg-slate-100 text-red-400 transition-colors ${
+                    locked ? "opacity-30 cursor-not-allowed" : ""
+                  }`}
                 >
                   <Trash2 size={24} />
                 </button>

@@ -1,6 +1,8 @@
 import { Hourglass } from "lucide-react";
-import type { Task } from "../../types";
+import type { Category, Task } from "../../types";
 import { TaskItem } from "./TaskItem";
+import { AiOperationCard } from "./AiOperationCard";
+import type { EditableOperation } from "../../hooks/useAiTaskAgent";
 
 interface TaskListProps {
   tasks: Task[];
@@ -10,6 +12,17 @@ interface TaskListProps {
   onClaimPoints: (taskId: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  // AIによるタスク操作のレビュー中に渡される追加情報。
+  // 新規作成の提案は一覧の先頭に、編集/削除の提案は対象タスクと同じ位置に差し込んで表示する。
+  aiCreates?: EditableOperation[];
+  aiOperationsByTaskId?: Map<string, EditableOperation>;
+  aiCategories?: Category[];
+  isAiReviewActive?: boolean;
+  onAiOperationChange?: (
+    key: string,
+    updates: Partial<EditableOperation>,
+  ) => void;
+  onAiOperationRemove?: (key: string) => void;
 }
 
 export const TaskList = ({
@@ -20,6 +33,12 @@ export const TaskList = ({
   onClaimPoints,
   onEdit,
   onDelete,
+  aiCreates = [],
+  aiOperationsByTaskId,
+  aiCategories = [],
+  isAiReviewActive = false,
+  onAiOperationChange,
+  onAiOperationRemove,
 }: TaskListProps) => {
   if (isLoading) {
     return (
@@ -27,7 +46,7 @@ export const TaskList = ({
     );
   }
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && aiCreates.length === 0) {
     if (isSupporter) {
       return (
         <p className="text-center text-sky-400 text-sm py-8">
@@ -57,18 +76,46 @@ export const TaskList = ({
 
   return (
     <div className="flex flex-col gap-2">
-      {tasks.map((task, index) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          isSupporter={isSupporter}
-          isFirst={index === 0}
-          onComplete={onComplete}
-          onClaimPoints={onClaimPoints}
-          onEdit={onEdit}
-          onDelete={onDelete}
+      {/* 新規作成の提案は一覧の先頭にカードとして差し込む（既存タスクは隠さない） */}
+      {aiCreates.map((op) => (
+        <AiOperationCard
+          key={op.key}
+          operation={op}
+          categories={aiCategories}
+          onChange={(updates) => onAiOperationChange?.(op.key, updates)}
+          onRemove={() => onAiOperationRemove?.(op.key)}
         />
       ))}
+
+      {tasks.map((task, index) => {
+        const op = aiOperationsByTaskId?.get(task.id);
+        if (op) {
+          // 編集・削除の提案は、対象タスクと同じ位置に置き換えて表示する
+          return (
+            <AiOperationCard
+              key={task.id}
+              operation={op}
+              categories={aiCategories}
+              onChange={(updates) => onAiOperationChange?.(op.key, updates)}
+              onRemove={() => onAiOperationRemove?.(op.key)}
+            />
+          );
+        }
+
+        return (
+          <TaskItem
+            key={task.id}
+            task={task}
+            isSupporter={isSupporter}
+            isFirst={index === 0}
+            onComplete={onComplete}
+            onClaimPoints={onClaimPoints}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            locked={isAiReviewActive}
+          />
+        );
+      })}
     </div>
   );
 };

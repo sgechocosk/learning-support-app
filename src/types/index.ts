@@ -79,6 +79,7 @@ export interface Task {
   completed_at: string | null;
   points_awarded_at: string | null;
   created_at: string;
+  is_daily: boolean;
   categories?: Category | null;
 }
 

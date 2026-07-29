@@ -317,6 +317,7 @@ export type Database = {
           created_at: string | null;
           id: string;
           is_completed: boolean | null;
+          is_daily: boolean;
           pair_id: string;
           points_awarded_at: string | null;
           reward_points: number | null;
@@ -329,6 +330,7 @@ export type Database = {
           created_at?: string | null;
           id?: string;
           is_completed?: boolean | null;
+          is_daily?: boolean;
           pair_id: string;
           points_awarded_at?: string | null;
           reward_points?: number | null;
@@ -341,6 +343,7 @@ export type Database = {
           created_at?: string | null;
           id?: string;
           is_completed?: boolean | null;
+          is_daily?: boolean;
           pair_id?: string;
           points_awarded_at?: string | null;
           reward_points?: number | null;

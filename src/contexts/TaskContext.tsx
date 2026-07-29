@@ -12,6 +12,7 @@ interface TaskContextType {
     categoryId: string | null;
     rewardPoints: number;
     scheduledAt?: string | null;
+    isDaily?: boolean;
   }) => Promise<{ error: string | null }>;
   updateTask: (
     taskId: string,
@@ -20,6 +21,7 @@ interface TaskContextType {
       categoryId?: string | null;
       rewardPoints?: number;
       scheduledAt?: string | null;
+      isDaily?: boolean;
     },
   ) => Promise<{ error: string | null }>;
   createTasksBulk: (
@@ -28,6 +30,7 @@ interface TaskContextType {
       categoryId: string | null;
       rewardPoints: number;
       scheduledAt?: string | null;
+      isDaily?: boolean;
     }[],
   ) => Promise<{ error: string | null; insertedCount: number }>;
   deleteTask: (taskId: string) => Promise<{ error: string | null }>;
@@ -50,6 +53,12 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       const bClaimed = b.points_awarded_at !== null;
 
       if (aClaimed !== bClaimed) return aClaimed ? 1 : -1;
+
+      // 未完了の毎日タスクは常に一番上に配置する（完了すると通常の並び順に戻る）
+      const aPinned = a.is_daily && !a.is_completed;
+      const bPinned = b.is_daily && !b.is_completed;
+
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
 
       const aDate = a.scheduled_at
         ? new Date(a.scheduled_at).getTime()
@@ -111,6 +120,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     categoryId,
     rewardPoints,
     scheduledAt = null,
+    isDaily = false,
   }) => {
     if (!pairId) return { error: "pair not found" };
     const { error } = await supabase.from("tasks").insert({
@@ -119,6 +129,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       title,
       reward_points: rewardPoints,
       scheduled_at: scheduledAt,
+      is_daily: isDaily,
     });
     if (!error) await fetchTasks(true);
     return { error: error?.message ?? null };
@@ -136,6 +147,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       title: input.title,
       reward_points: input.rewardPoints,
       scheduled_at: input.scheduledAt ?? null,
+      is_daily: input.isDaily ?? false,
     }));
 
     const { error } = await supabase.from("tasks").insert(rows);
@@ -152,6 +164,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       category_id?: string | null;
       reward_points?: number;
       scheduled_at?: string | null;
+      is_daily?: boolean;
     } = {};
 
     if (updates.title !== undefined) payload.title = updates.title;
@@ -161,6 +174,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       payload.reward_points = updates.rewardPoints;
     if (updates.scheduledAt !== undefined)
       payload.scheduled_at = updates.scheduledAt;
+    if (updates.isDaily !== undefined) payload.is_daily = updates.isDaily;
 
     const { error } = await supabase
       .from("tasks")

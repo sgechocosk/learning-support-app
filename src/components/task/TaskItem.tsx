@@ -190,7 +190,6 @@ export const TaskItem = ({
         {isHidden && (
           <span className="flex items-center gap-1 shrink-0 text-[10px] font-bold text-slate-500 bg-slate-200/50 px-1.5 py-0.5 rounded">
             <EyeOff size={10} />
-            学習者に非表示
           </span>
         )}
 

@@ -2,8 +2,9 @@ import type { AiTaskOperationDraft, Task } from "../types";
 
 // Gemini API (Generative Language API) を直接 REST 呼び出しする軽量クライアント。
 // SDKを追加せず fetch のみで完結させることで、依存関係の増加を避けている。
-const GEMINI_MODEL = "gemini-3.5-flash-lite";
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
+const getGeminiEndpoint = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TASK_REF_PREFIX = "T";
@@ -281,30 +282,37 @@ export async function generateTaskOperations(
     },
   };
 
-  let response: Response;
-  try {
-    response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    });
-  } catch {
-    throw new Error(
-      "Gemini APIへの通信に失敗しました。ネットワーク状況を確認してください。",
-    );
-  }
+  let response: Response | undefined;
+  let lastDetail = "";
+  for (const model of GEMINI_MODELS) {
+    try {
+      response = await fetch(`${getGeminiEndpoint(model)}?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+    } catch {
+      response = undefined;
+      continue;
+    }
 
-  if (!response.ok) {
-    let detail = "";
+    if (response.ok) break;
+
     try {
       const errJson = await response.json();
-      detail =
+      lastDetail =
         (errJson as { error?: { message?: string } })?.error?.message ?? "";
     } catch {
       // ignore parse failure, use generic message
     }
+    response = undefined;
+  }
+
+  if (!response) {
     throw new Error(
-      `AIによる操作の推測に失敗しました${detail ? `（${detail}）` : ""}。`,
+      lastDetail
+        ? `AIによる操作の推測に失敗しました（${lastDetail}）。`
+        : "Gemini APIへの通信に失敗しました。ネットワーク状況を確認してください。",
     );
   }
 

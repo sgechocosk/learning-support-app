@@ -399,12 +399,123 @@ export type Database = {
           },
         ];
       };
+      timer_sessions: {
+        Row: {
+          learner_id: string;
+          pair_id: string;
+          started_at: string | null;
+          accumulated_ms: number;
+          awarded_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          learner_id: string;
+          pair_id: string;
+          started_at?: string | null;
+          accumulated_ms?: number;
+          awarded_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          learner_id?: string;
+          pair_id?: string;
+          started_at?: string | null;
+          accumulated_ms?: number;
+          awarded_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "timer_sessions_learner_id_fkey";
+            columns: ["learner_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timer_sessions_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      award_timer_points: { Args: { p_points: number }; Returns: undefined };
+      // 学習者本人のサーバー権威タイマー状態（実行中かどうか・経過時間・
+      // 付与済みいちご数）を取得する。付与処理は行わない読み取り専用API。
+      get_timer_session_state: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          is_running: boolean;
+          started_at: string | null;
+          accumulated_ms: number;
+          awarded_count: number;
+          interval_minutes: number;
+          elapsed_ms: number;
+          strawberry_count: number;
+          server_now: string;
+        }[];
+      };
+      // タイマー開始。既に(他タブ/他デバイスで)実行中のセッションがあれば、
+      // 新規セッションは作らずその既存セッションにそのまま乗る。
+      start_timer_session: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          is_running: boolean;
+          started_at: string | null;
+          accumulated_ms: number;
+          awarded_count: number;
+          interval_minutes: number;
+          elapsed_ms: number;
+          strawberry_count: number;
+          server_now: string;
+        }[];
+      };
+      // タイマー停止（経過時間を確定させる）。
+      stop_timer_session: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          is_running: boolean;
+          started_at: string | null;
+          accumulated_ms: number;
+          awarded_count: number;
+          interval_minutes: number;
+          elapsed_ms: number;
+          strawberry_count: number;
+          server_now: string;
+        }[];
+      };
+      // 未付与分のいちごをサーバー計算で確定付与する。
+      // クライアントは付与量を渡さない（渡せない）ため、複数タブ/デバイスから
+      // 同時に呼ばれても二重付与されない（行ロックにより直列化される）。
+      sync_timer_points: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          awarded_delta: number;
+          awarded_count: number;
+          strawberry_count: number;
+          elapsed_ms: number;
+          points: number;
+          total_points: number;
+        }[];
+      };
+      // 未付与分を確定付与した上で、セッションをアトミックに0へリセットする。
+      complete_timer_session: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          awarded_delta: number;
+          awarded_count: number;
+          strawberry_count: number;
+          elapsed_ms: number;
+          points: number;
+          total_points: number;
+        }[];
+      };
       get_current_streak: { Args: { p_pair_id: string }; Returns: number };
       claim_task_points: { Args: { task_id: string }; Returns: undefined };
       complete_task: { Args: { task_id: string }; Returns: undefined };

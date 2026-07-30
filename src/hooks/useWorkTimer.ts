@@ -3,204 +3,277 @@ import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "./useProfile";
 import { useTimerSettings } from "./useTimerSettings";
 
-const STORAGE_KEY = "app_timer_session_v2";
-
 export const MIN_INTERVAL_MINUTES = 1;
 export const MAX_INTERVAL_MINUTES = 10;
 
-interface StoredSessionState {
-  priorLifetimeMs: number;
+// localStorage は「表示を即座に復元するためのキャッシュ」に過ぎない。
+// 実際に付与されるいちごの数はすべてサーバー（timer_sessionsテーブルと
+// SECURITY DEFINER の RPC群）が計算する値のみを信頼する。
+// タブ/デバイスをまたいだ多重付与を防ぐための対策の詳細は
+// supabase/migrations/20260730120000_fix_timer_duplicate_reward.sql を参照。
+const DISPLAY_CACHE_KEY = "app_timer_session_display_cache_v3";
+
+interface DisplayCache {
   accumulatedMs: number;
-  runningSince: number | null;
-  strawberryCount: number;
   awardedCount: number;
 }
 
-const loadState = (): StoredSessionState => {
+const loadDisplayCache = (): DisplayCache | null => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) throw new Error("no state");
-    const parsed = JSON.parse(raw) as Partial<StoredSessionState>;
+    const raw = localStorage.getItem(DISPLAY_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DisplayCache>;
+    if (
+      typeof parsed.accumulatedMs !== "number" ||
+      parsed.accumulatedMs < 0 ||
+      typeof parsed.awardedCount !== "number" ||
+      parsed.awardedCount < 0
+    ) {
+      return null;
+    }
     return {
-      priorLifetimeMs:
-        typeof parsed.priorLifetimeMs === "number" &&
-        parsed.priorLifetimeMs >= 0
-          ? parsed.priorLifetimeMs
-          : 0,
-      accumulatedMs:
-        typeof parsed.accumulatedMs === "number" && parsed.accumulatedMs >= 0
-          ? parsed.accumulatedMs
-          : 0,
-      runningSince:
-        typeof parsed.runningSince === "number" ? parsed.runningSince : null,
-      strawberryCount:
-        typeof parsed.strawberryCount === "number" &&
-        parsed.strawberryCount >= 0
-          ? parsed.strawberryCount
-          : 0,
-      awardedCount:
-        typeof parsed.awardedCount === "number" && parsed.awardedCount >= 0
-          ? parsed.awardedCount
-          : 0,
+      accumulatedMs: parsed.accumulatedMs,
+      awardedCount: parsed.awardedCount,
     };
   } catch {
-    return {
-      priorLifetimeMs: 0,
-      accumulatedMs: 0,
-      runningSince: null,
-      strawberryCount: 0,
-      awardedCount: 0,
-    };
+    return null;
   }
 };
 
-const saveState = (state: StoredSessionState) => {
+const saveDisplayCache = (cache: DisplayCache) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify(cache));
   } catch {}
 };
 
-/**
- * サーバー（プロフィールDB）へのいちご付与リクエスト。
- * 成功したかどうかを boolean で返し、呼び出し側は成功時のみ
- * ローカルの「付与済みカウント」を進める。失敗時はローカル状態を
- * 変更しないことで、再試行によって取りこぼし（データの紛失）を防ぐ。
- */
-const requestAwardPoints = async (amount: number): Promise<boolean> => {
-  if (amount <= 0) return true;
-  try {
-    const { error } = await supabase.rpc("award_timer_points", {
-      p_points: amount,
-    });
-    if (error) {
-      console.warn("Error awarding points", error);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.warn("Error awarding points", e);
-    return false;
-  }
+interface ServerTimerState {
+  isRunning: boolean;
+  // サーバー時計を基準にした開始時刻（エポックms）。stop中はnull。
+  startedAtMs: number | null;
+  accumulatedMs: number;
+  awardedCount: number;
+  intervalMinutes: number;
+  // サーバー時刻とこの端末の時計のズレ（サーバー時刻 - 端末時刻）。
+  // 端末の時計が狂っていても、経過時間の表示・判定はサーバー基準に揃える。
+  clockOffsetMs: number;
+}
+
+const EMPTY_STATE: ServerTimerState = {
+  isRunning: false,
+  startedAtMs: null,
+  accumulatedMs: 0,
+  awardedCount: 0,
+  intervalMinutes: 5,
+  clockOffsetMs: 0,
 };
 
+interface TimerSessionRpcRow {
+  is_running: boolean;
+  started_at: string | null;
+  accumulated_ms: number;
+  awarded_count: number;
+  interval_minutes: number;
+  elapsed_ms: number;
+  strawberry_count: number;
+  server_now: string;
+}
+
+const toServerState = (row: TimerSessionRpcRow): ServerTimerState => {
+  const serverNowMs = new Date(row.server_now).getTime();
+  return {
+    isRunning: row.is_running,
+    startedAtMs: row.started_at ? new Date(row.started_at).getTime() : null,
+    accumulatedMs: row.accumulated_ms,
+    awardedCount: row.awarded_count,
+    intervalMinutes: row.interval_minutes,
+    clockOffsetMs: serverNowMs - Date.now(),
+  };
+};
+
+interface PointsRpcRow {
+  awarded_delta: number;
+  awarded_count: number;
+  strawberry_count: number;
+  elapsed_ms: number;
+  points: number;
+  total_points: number;
+}
+
 export const useWorkTimer = () => {
-  const { profile, updateProfileState, refreshProfile } = useProfile();
+  const { profile, updateProfileState } = useProfile();
   const { settings, notifyTimerActive } = useTimerSettings();
 
-  const intervalMinutes = settings?.interval_minutes ?? 5;
   const continueInBackground = settings?.continue_in_background ?? false;
   const pointsTiming = settings?.points_timing ?? "realtime";
 
-  const initial = loadState();
-  const [priorLifetimeMs, setPriorLifetimeMs] = useState(
-    initial.priorLifetimeMs,
-  );
-  const [accumulatedMs, setAccumulatedMs] = useState(initial.accumulatedMs);
-  const [runningSince, setRunningSince] = useState<number | null>(
-    initial.runningSince,
-  );
-  const [strawberryCount, setStrawberryCount] = useState(
-    initial.strawberryCount,
-  );
-  const [awardedCount, setAwardedCount] = useState(initial.awardedCount);
+  // 学習者本人のみタイマーを操作できる（サーバー側のRPCでも role を検証している）。
+  const learnerId = profile?.role === "learner" ? profile.id : null;
+
+  const [serverState, setServerState] = useState<ServerTimerState>(() => {
+    const cached = loadDisplayCache();
+    if (!cached) return EMPTY_STATE;
+    // キャッシュはあくまで表示の初期値。isRunning は必ず false から始め、
+    // サーバーから実際の状態が届き次第それで上書きする
+    // （動作中かどうかを端末のローカル状態だけで判断しない）。
+    return {
+      ...EMPTY_STATE,
+      accumulatedMs: cached.accumulatedMs,
+      awardedCount: cached.awardedCount,
+    };
+  });
+  const [isLoaded, setIsLoaded] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [isSyncingPoints, setIsSyncingPoints] = useState(false);
 
-  const isRunning = runningSince !== null;
+  const latest = useRef({ serverState, continueInBackground });
+  latest.current = { serverState, continueInBackground };
 
-  const latest = useRef({
-    isRunning,
-    continueInBackground,
-    runningSince,
-    accumulatedMs,
-    priorLifetimeMs,
-    strawberryCount,
-    awardedCount,
-  });
-  latest.current = {
-    isRunning,
-    continueInBackground,
-    runningSince,
-    accumulatedMs,
-    priorLifetimeMs,
-    strawberryCount,
-    awardedCount,
-  };
-
-  // 進行中のDB同期リクエストが重複発火しないようにするフラグ
   const isSyncingRef = useRef(false);
 
+  // 起動時にサーバー権威の状態を取得する。
+  // 他のタブ/デバイスで既にタイマーが動いていれば、その状態がそのまま返る。
   useEffect(() => {
-    if (!isRunning) return;
+    if (!learnerId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_timer_session_state");
+      if (!cancelled && !error && data && data[0]) {
+        setServerState(toServerState(data[0] as TimerSessionRpcRow));
+      }
+      if (!cancelled) setIsLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [learnerId]);
+
+  // 他のタブ/他のデバイスでの開始・停止・付与をリアルタイムに反映する。
+  // これにより「別タブで既に動いている」ことにこのタブも気づき、
+  // 独立した別セッションを作らず同じ状態に追従できる。
+  useEffect(() => {
+    if (!learnerId) return;
+
+    const channel = supabase
+      .channel(`timer-session-${learnerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "timer_sessions",
+          filter: `learner_id=eq.${learnerId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            started_at: string | null;
+            accumulated_ms: number;
+            awarded_count: number;
+          } | null;
+          if (!row) return;
+          setServerState((prev) => ({
+            ...prev,
+            isRunning: row.started_at !== null,
+            startedAtMs: row.started_at
+              ? new Date(row.started_at).getTime()
+              : null,
+            accumulatedMs: row.accumulated_ms,
+            awardedCount: row.awarded_count,
+          }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [learnerId]);
+
+  useEffect(() => {
+    if (!serverState.isRunning) return;
     const id = setInterval(() => setNowTick(Date.now()), 500);
     return () => clearInterval(id);
-  }, [isRunning]);
+  }, [serverState.isRunning]);
 
-  // タイマー動作中は支援者側の設定変更をすぐに反映させない。
-  // 開始前・停止後（isRunning === false）のタイミングでのみ同期される。
+  // タイマー動作中は支援者側の設定変更をすぐに反映させない
+  // （TimerSettingsContext 側の既存の挙動を維持する）。
   useEffect(() => {
-    notifyTimerActive(isRunning);
-  }, [isRunning, notifyTimerActive]);
-
-  const sessionElapsedMs =
-    accumulatedMs +
-    (isRunning ? Math.max(0, nowTick - (runningSince as number)) : 0);
-
-  const lifetimeElapsedMs = priorLifetimeMs + sessionElapsedMs;
-
-  const intervalMs = intervalMinutes * 60 * 1000;
+    notifyTimerActive(serverState.isRunning);
+  }, [serverState.isRunning, notifyTimerActive]);
 
   useEffect(() => {
-    const earned = Math.floor(lifetimeElapsedMs / intervalMs);
-    if (earned > strawberryCount) {
-      setStrawberryCount(earned);
-    }
-  }, [lifetimeElapsedMs, intervalMs, strawberryCount]);
+    saveDisplayCache({
+      accumulatedMs: serverState.accumulatedMs,
+      awardedCount: serverState.awardedCount,
+    });
+  }, [serverState.accumulatedMs, serverState.awardedCount]);
 
-  // 「リアルタイム」設定の場合、画面上のいちごの数（strawberryCount）が
-  // 増えるたびに、その差分を即座にDBへ反映する。
-  // 反映が成功した場合のみ awardedCount を進めることで、通信エラー等で
-  // 更新が失敗しても「付与済み扱いなのにDBには残っていない」という
-  // 予期しないデータの紛失を防ぐ（次のトリガーで自動的に再試行される）。
+  const elapsedMs =
+    serverState.accumulatedMs +
+    (serverState.isRunning && serverState.startedAtMs !== null
+      ? Math.max(
+          0,
+          nowTick + serverState.clockOffsetMs - serverState.startedAtMs,
+        )
+      : 0);
+
+  const intervalMs = Math.max(serverState.intervalMinutes, 1) * 60 * 1000;
+  // 画面表示用の即時計算。実際に付与されるいちご数は必ずサーバー
+  // (sync_timer_points / complete_timer_session の戻り値)を正とする。
+  const strawberryCount = Math.floor(elapsedMs / intervalMs);
+  const awardedCount = serverState.awardedCount;
+  const pendingPoints = Math.max(0, strawberryCount - awardedCount);
+  const msUntilNextStrawberry = Math.max(
+    0,
+    (strawberryCount + 1) * intervalMs - elapsedMs,
+  );
+
+  /**
+   * サーバーに「未付与分のいちごを付与して」と伝える。
+   * 付与量はクライアントからは一切渡さず、サーバー自身が
+   * 現在の経過時間から計算した未付与分だけを、行ロックの下で1回だけ
+   * 加算する。そのため複数タブ/デバイスからほぼ同時に呼ばれても
+   * 二重に付与されることはない。
+   */
   const syncRealtimePoints = useCallback(async () => {
     if (pointsTiming !== "realtime") return;
+    if (!learnerId) return;
     if (isSyncingRef.current) return;
-
-    const pending =
-      latest.current.strawberryCount - latest.current.awardedCount;
-    if (pending <= 0) return;
 
     isSyncingRef.current = true;
     setIsSyncingPoints(true);
-    const targetCount = latest.current.strawberryCount;
     try {
-      const ok = await requestAwardPoints(pending);
-      if (ok) {
-        setAwardedCount((prev) => Math.max(prev, targetCount));
+      const { data, error } = await supabase.rpc("sync_timer_points");
+      if (error) {
+        console.warn("Error syncing points", error);
+        return;
+      }
+      const result = (data?.[0] ?? null) as PointsRpcRow | null;
+      if (result) {
+        setServerState((prev) => ({
+          ...prev,
+          awardedCount: result.awarded_count,
+        }));
         if (profile) {
           updateProfileState({
-            points: profile.points + pending,
-            total_points: profile.total_points + pending,
+            points: result.points,
+            total_points: result.total_points,
           });
         }
-        // ローカルの加算はあくまで即時表示用の楽観的更新。
-        // サーバー側の実際の値（トリガー計算結果）で必ず上書きし、
-        // 連続付与時の取りこぼしやズレが蓄積しないようにする。
-        await refreshProfile();
       }
-      // 失敗時は awardedCount を進めない。strawberryCount /
-      // awardedCount のどちらかが変化した際や、次の再試行タイミングで
-      // 再度この関数が呼ばれ、未送信分が送られる。
+    } catch (e) {
+      console.warn("Error syncing points", e);
     } finally {
       isSyncingRef.current = false;
       setIsSyncingPoints(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pointsTiming, profile]);
+  }, [pointsTiming, learnerId, profile, updateProfileState]);
 
-  // 画面上の数字（strawberryCount）が変化した「その瞬間」に同期を試みる
+  // 画面上のいちごの数が増えた「その瞬間」に同期を試みる
   useEffect(() => {
-    syncRealtimePoints();
+    if (pointsTiming !== "realtime") return;
+    if (strawberryCount > awardedCount) {
+      syncRealtimePoints();
+    }
   }, [pointsTiming, strawberryCount, awardedCount, syncRealtimePoints]);
 
   // 通信失敗時の取りこぼし対策: オンライン復帰時・タブがフォアグラウンドに
@@ -223,106 +296,102 @@ export const useWorkTimer = () => {
     };
   }, [pointsTiming, syncRealtimePoints]);
 
-  useEffect(() => {
-    saveState({
-      priorLifetimeMs,
-      accumulatedMs,
-      runningSince,
-      strawberryCount,
-      awardedCount,
-    });
-  }, [
-    priorLifetimeMs,
-    accumulatedMs,
-    runningSince,
-    strawberryCount,
-    awardedCount,
-  ]);
+  const start = useCallback(async () => {
+    if (!learnerId) return;
 
-  const start = useCallback(() => {
-    setRunningSince((prev) => (prev !== null ? prev : Date.now()));
-    setNowTick(Date.now());
-  }, []);
+    // 即時のUI反応用の楽観的更新。実際の開始時刻はサーバーの応答で必ず
+    // 上書きされる（既に他タブ/他デバイスで動いていれば、その開始時刻に
+    // 揃えられる＝新しい別セッションにはならない）。
+    setServerState((prev) =>
+      prev.isRunning
+        ? prev
+        : {
+            ...prev,
+            isRunning: true,
+            startedAtMs: Date.now() + prev.clockOffsetMs,
+          },
+    );
 
-  const stop = useCallback(() => {
-    const since = latest.current.runningSince;
-    if (since !== null) {
-      setAccumulatedMs((acc) => acc + Math.max(0, Date.now() - since));
-      setRunningSince(null);
+    const { data, error } = await supabase.rpc("start_timer_session");
+    if (error) {
+      console.warn("Error starting timer session", error);
+      return;
     }
-  }, []);
+    if (data && data[0]) {
+      setServerState(toServerState(data[0] as TimerSessionRpcRow));
+    }
+  }, [learnerId]);
+
+  const stop = useCallback(async () => {
+    if (!learnerId) return;
+
+    setServerState((prev) => {
+      if (!prev.isRunning || prev.startedAtMs === null) return prev;
+      const frozen =
+        prev.accumulatedMs +
+        Math.max(0, Date.now() + prev.clockOffsetMs - prev.startedAtMs);
+      return { ...prev, isRunning: false, startedAtMs: null, accumulatedMs: frozen };
+    });
+
+    const { data, error } = await supabase.rpc("stop_timer_session");
+    if (error) {
+      console.warn("Error stopping timer session", error);
+      return;
+    }
+    if (data && data[0]) {
+      setServerState(toServerState(data[0] as TimerSessionRpcRow));
+    }
+  }, [learnerId]);
 
   /**
    * 学習者が完了ボタン（確認モーダルの「完了する」）を押した瞬間に呼ばれる。
-   * 「タイマー終了後にまとめて付与」設定の場合はここで初めてDBへの
-   * 付与リクエストを送る。DBへの反映が確認できた場合にのみローカルの
-   * セッション状態をリセットする。反映に失敗した場合はセッションを
-   * リセットせず、いちごを失わないようにして呼び出し元へ失敗を伝える
-   * （呼び出し元でエラー表示・再試行が可能）。
+   * サーバー側で「未付与分の確定付与」と「セッションを0へリセット」を
+   * 同一トランザクション・同一行ロックの中でアトミックに行うため、
+   * ここでも複数タブ/デバイスからの同時操作で不整合や二重付与は起きない。
+   * 通信に失敗した場合はセッションをリセットせず、いちごを失わないように
+   * して呼び出し元へ失敗を伝える（呼び出し元でエラー表示・再試行が可能）。
    */
   const completeSession = useCallback(async (): Promise<boolean> => {
-    const since = latest.current.runningSince;
-    const finalAccumulated =
-      latest.current.accumulatedMs +
-      (since !== null ? Math.max(0, Date.now() - since) : 0);
+    if (!learnerId) return false;
 
-    if (pointsTiming === "on_finish") {
-      const finalStrawberries = Math.floor(
-        (latest.current.priorLifetimeMs + finalAccumulated) / intervalMs,
-      );
-      const finalCount = Math.max(
-        finalStrawberries,
-        latest.current.strawberryCount,
-      );
-      const pending = finalCount - latest.current.awardedCount;
-
-      if (pending > 0) {
-        setIsSyncingPoints(true);
-        let ok: boolean;
-        try {
-          ok = await requestAwardPoints(pending);
-        } finally {
-          setIsSyncingPoints(false);
-        }
-
-        if (!ok) {
-          // DBへの反映が確認できるまでセッションは維持し、
-          // 貯めたいちごが失われないようにする。
-          return false;
-        }
-
-        setAwardedCount(finalCount);
-        if (profile) {
-          updateProfileState({
-            points: profile.points + pending,
-            total_points: profile.total_points + pending,
-          });
-        }
-        await refreshProfile();
-      }
-    } else {
-      // realtime設定でも、直前に未送信分が残っている可能性があるため
-      // 念のため最後にもう一度同期を試みる。
-      await syncRealtimePoints();
-      if (latest.current.strawberryCount > latest.current.awardedCount) {
+    setIsSyncingPoints(true);
+    try {
+      const { data, error } = await supabase.rpc("complete_timer_session");
+      if (error) {
+        console.warn("Error completing timer session", error);
         return false;
       }
-    }
+      const result = (data?.[0] ?? null) as PointsRpcRow | null;
+      if (!result) return false;
 
-    setRunningSince(null);
-    setAccumulatedMs(0);
-    setPriorLifetimeMs(0);
-    setStrawberryCount(0);
-    setAwardedCount(0);
-    return true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pointsTiming, intervalMs, profile, syncRealtimePoints]);
+      if (profile) {
+        updateProfileState({
+          points: result.points,
+          total_points: result.total_points,
+        });
+      }
+
+      setServerState((prev) => ({
+        ...prev,
+        isRunning: false,
+        startedAtMs: null,
+        accumulatedMs: 0,
+        awardedCount: 0,
+      }));
+      return true;
+    } catch (e) {
+      console.warn("Error completing timer session", e);
+      return false;
+    } finally {
+      setIsSyncingPoints(false);
+    }
+  }, [learnerId, profile, updateProfileState]);
 
   useEffect(() => {
     const handleHide = () => {
-      const { isRunning: running, continueInBackground: keepGoing } =
+      const { serverState: state, continueInBackground: keepGoing } =
         latest.current;
-      if (running && !keepGoing) {
+      if (state.isRunning && !keepGoing) {
         stop();
       }
     };
@@ -340,45 +409,13 @@ export const useWorkTimer = () => {
     };
   }, [stop]);
 
-  useEffect(() => {
-    return () => {
-      const {
-        isRunning: running,
-        continueInBackground: keepGoing,
-        runningSince: since,
-        accumulatedMs: acc,
-        priorLifetimeMs: prior,
-        strawberryCount: sc,
-        awardedCount: ac,
-      } = latest.current;
-
-      if (running && !keepGoing && since !== null) {
-        const frozenAccumulated = acc + Math.max(0, Date.now() - since);
-        saveState({
-          priorLifetimeMs: prior,
-          accumulatedMs: frozenAccumulated,
-          runningSince: null,
-          strawberryCount: sc,
-          awardedCount: ac,
-        });
-      }
-    };
-  }, []);
-
-  const pendingPoints = strawberryCount - awardedCount;
-
-  const msUntilNextStrawberry = Math.max(
-    0,
-    (strawberryCount + 1) * intervalMs - lifetimeElapsedMs,
-  );
-
   return {
-    intervalMinutes,
+    isLoaded,
+    intervalMinutes: serverState.intervalMinutes,
     continueInBackground,
     pointsTiming,
-    isRunning,
-    elapsedMs: sessionElapsedMs,
-    totalWorkedMs: lifetimeElapsedMs,
+    isRunning: serverState.isRunning,
+    elapsedMs,
     strawberryCount,
     awardedCount,
     pendingPoints,
@@ -389,5 +426,3 @@ export const useWorkTimer = () => {
     completeSession,
   };
 };
-
-export type { StoredSessionState };

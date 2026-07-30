@@ -6,6 +6,7 @@ import { NumberStepper } from "../components/ui/NumberStepper";
 import { ToggleSwitch } from "../components/ui/ToggleSwitch";
 import { Modal } from "../components/ui/Modal";
 import { useHaptic } from "../hooks/useHaptic";
+import { useWakeLock } from "../hooks/useWakeLock";
 import { useProfile } from "../hooks/useProfile";
 import {
   MAX_INTERVAL_MINUTES,
@@ -214,6 +215,9 @@ function LearnerTimerPanel() {
   const [showComplete, setShowComplete] = useState(false);
   const [completeError, setCompleteError] = useState(false);
   const wasRunningBeforeCompleteRef = useRef(false);
+
+  // タイマー動作中は画面の自動スリープを防止する（動画再生中と同様の挙動）
+  useWakeLock(isRunning);
 
   const hasProgress = elapsedMs > 0 || strawberryCount > 0;
 

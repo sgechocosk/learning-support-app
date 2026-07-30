@@ -330,7 +330,12 @@ export const useWorkTimer = () => {
       const frozen =
         prev.accumulatedMs +
         Math.max(0, Date.now() + prev.clockOffsetMs - prev.startedAtMs);
-      return { ...prev, isRunning: false, startedAtMs: null, accumulatedMs: frozen };
+      return {
+        ...prev,
+        isRunning: false,
+        startedAtMs: null,
+        accumulatedMs: frozen,
+      };
     });
 
     const { data, error } = await supabase.rpc("stop_timer_session");

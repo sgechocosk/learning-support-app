@@ -198,6 +198,7 @@ function LearnerTimerPanel() {
   const triggerHaptic = useHaptic();
   const { isLoading: isSettingsLoading } = useTimerSettings();
   const {
+    isLoaded,
     intervalMinutes,
     continueInBackground,
     pointsTiming,
@@ -267,6 +268,15 @@ function LearnerTimerPanel() {
       setCompleteError(true);
     }
   };
+
+  // サーバーから正しい経過時間(実行中なら経過分も含む)が届く前にフラスコを
+  // マウントすると、キャッシュ由来の少ない初期値→サーバー到着後の実値、という
+  // 差分が「新規に貯まった分」としてアニメーション(上から降ってくる演出)されて
+  // しまう。読み込み完了まで待ってからマウントすることで、ページ切り替え後も
+  // 既に貯まった状態がそのまま(アニメーションなしで)表示されるようにする。
+  if (!isLoaded) {
+    return <div className="w-full h-full max-w-4xl mx-auto px-4 pt-3 pb-0" />;
+  }
 
   return (
     <div className="w-full h-full max-w-4xl mx-auto px-4 pt-3 pb-0 grid grid-cols-1 grid-rows-[auto_1fr_auto] landscape:grid-cols-2 landscape:grid-rows-[1fr_1fr] gap-4 min-h-0">

@@ -54,9 +54,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
 
       if (aClaimed !== bClaimed) return aClaimed ? 1 : -1;
 
-      // 未完了の毎日タスクは常に一番上に配置する（完了すると通常の並び順に戻る）
-      const aPinned = a.is_daily && !a.is_completed;
-      const bPinned = b.is_daily && !b.is_completed;
+      // 毎日タスクは完了/未完了に関わらず常に上位グループに配置する。
+      // is_completed を条件に含めると、学習者が完了操作をした瞬間に
+      // ピン留めが外れて他のタスクより下に移動してしまい、それに伴って
+      // 予定日のないタスクなど周囲のタスクの表示順まで連動してズレて
+      // しまうため、is_daily のみで判定する（完了操作では位置を変えない）。
+      const aPinned = a.is_daily;
+      const bPinned = b.is_daily;
 
       if (aPinned !== bPinned) return aPinned ? -1 : 1;
 
@@ -67,8 +71,16 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         ? new Date(b.scheduled_at).getTime()
         : Infinity;
 
-      if (aDate === bDate) return 0;
-      return aDate - bDate;
+      if (aDate !== bDate) return aDate - bDate;
+
+      // 予定日が同じ（または共に未設定）の場合は作成日時で安定した順序を保つ。
+      // これがないと、DBの取得順が予定日だけでは一意に定まらず、
+      // 完了操作のたびに再取得された順序が変わって表示位置が
+      // 意図せず入れ替わってしまう。
+      const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+      return aCreated - bCreated;
     });
   };
 
@@ -83,7 +95,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       .from("tasks")
       .select("*, categories(id, name, color)")
       .eq("pair_id", pairId)
-      .order("scheduled_at", { ascending: true, nullsFirst: false });
+      .order("scheduled_at", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true });
 
     if (data && !error) setTasks(sortTasks(data as unknown as Task[]));
     setIsLoading(false);

@@ -55,7 +55,7 @@ export const AiTaskInputBar = ({
     // 付箋のようにナビの下から飛び出しているように見える。
     // 既存タスクの一覧はこの入力欄の背後（上のスクロール領域）に常に表示されたままになる。
     <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pointer-events-none">
-      <div className="w-full max-w-md pointer-events-auto rounded-t-2xl overflow-hidden border border-sky-200 border-b-0 bg-white shadow-[0_-6px_16px_rgba(0,0,0,0.10)]">
+      <div className="w-full pointer-events-auto rounded-t-2xl overflow-hidden border border-sky-200 border-b-0 bg-white shadow-[0_-6px_16px_rgba(0,0,0,0.10)]">
         {/* 実際に見える・操作できる入力エリア。ナビ本体やアイコンの盛り上がりとは重ならない */}
         <div className="flex items-end gap-2 px-3 py-2">
           {isGenerating ? (

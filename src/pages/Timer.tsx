@@ -217,6 +217,14 @@ function LearnerTimerPanel() {
   const [completeError, setCompleteError] = useState(false);
   const wasRunningBeforeCompleteRef = useRef(false);
 
+  // 完了演出中(いちごが入口から飛び出している間)は、フラスコに渡す個数を
+  // サーバー由来のリアルタイム値ではなくこの値で固定し、演出が終わるまで
+  // 「0個にリセットされた瞬間に全部消える」のを防ぐ。
+  const [flaskOverrideCount, setFlaskOverrideCount] = useState<number | null>(
+    null,
+  );
+  const [isDraining, setIsDraining] = useState(false);
+
   // タイマー動作中は画面の自動スリープを防止する（動画再生中と同様の挙動）
   useWakeLock(isRunning);
 
@@ -261,13 +269,37 @@ function LearnerTimerPanel() {
   const confirmComplete = async () => {
     triggerHaptic();
     setCompleteError(false);
+
+    // 完了APIを叩くと awardedCount/accumulatedMs が即0になり
+    // strawberryCount も一瞬で0になってしまうため、その前に「今見えている個数」
+    // をフラスコ用に固定しておき、飛び出し演出が終わるまで維持する。
+    const preCount = strawberryCount;
+    if (preCount > 0) {
+      setFlaskOverrideCount(preCount);
+    }
+
     const ok = await completeSession();
-    if (ok) {
-      setShowComplete(false);
-    } else {
+    if (!ok) {
+      setFlaskOverrideCount(null);
       setCompleteError(true);
+      return;
+    }
+
+    setShowComplete(false);
+
+    if (preCount > 0) {
+      setIsDraining(true);
+    } else {
+      setFlaskOverrideCount(null);
     }
   };
+
+  const handleDrainComplete = () => {
+    setIsDraining(false);
+    setFlaskOverrideCount(null);
+  };
+
+  const displayFlaskCount = flaskOverrideCount ?? strawberryCount;
 
   // サーバーから正しい経過時間(実行中なら経過分も含む)が届く前にフラスコを
   // マウントすると、キャッシュ由来の少ない初期値→サーバー到着後の実値、という
@@ -314,11 +346,13 @@ function LearnerTimerPanel() {
           }}
         >
           <HerbariumFlask
-            count={strawberryCount}
+            count={displayFlaskCount}
             intervalMinutes={intervalMinutes}
             glassColorHex="#fb7185"
             width={FLASK_WIDTH}
             height={FLASK_HEIGHT}
+            isDraining={isDraining}
+            onDrainComplete={handleDrainComplete}
           />
         </div>
       </div>

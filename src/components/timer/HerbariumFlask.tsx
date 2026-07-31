@@ -70,6 +70,11 @@ interface HerbariumFlaskProps {
   glassColorHex?: string;
   width?: number;
   height?: number;
+  // 完了時などに、たまったいちごを入口から一つずつ素早く追い出す演出。
+  // true になった瞬間に、その時点でフラスコ内にあるいちご全てを排出キューへ積む。
+  isDraining?: boolean;
+  // 排出対象だったいちごを全て排出し終えた時に呼ばれる。
+  onDrainComplete?: () => void;
 }
 
 export default function HerbariumFlask({
@@ -78,6 +83,8 @@ export default function HerbariumFlask({
   glassColorHex = "#fb7185",
   width = 340, // 左右の余白を削るため400→340に変更
   height = 450, // 高さも無駄な余白を削るため500→450に変更
+  isDraining = false,
+  onDrainComplete,
 }: HerbariumFlaskProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -85,16 +92,23 @@ export default function HerbariumFlask({
   const engineRef = useRef<any>(null);
   const bodiesApiRef = useRef<any>(null);
   const dropFnRef = useRef<((n: number) => void) | null>(null);
+  const drainFnRef = useRef<(() => void) | null>(null);
   const spawnedCountRef = useRef(0);
   const pendingCountRef = useRef(0);
+  const wasDrainingRef = useRef(false);
 
   const countRef = useRef(count);
   const intervalMinutesRef = useRef(intervalMinutes);
+  const onDrainCompleteRef = useRef(onDrainComplete);
 
   useEffect(() => {
     countRef.current = count;
     intervalMinutesRef.current = intervalMinutes;
   }, [count, intervalMinutes]);
+
+  useEffect(() => {
+    onDrainCompleteRef.current = onDrainComplete;
+  }, [onDrainComplete]);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +133,7 @@ export default function HerbariumFlask({
       MouseConstraint,
       Events,
       Body,
+      Sleeping,
     } = window.Matter;
 
     const engine = Engine.create({ enableSleeping: true });
@@ -278,6 +293,78 @@ export default function HerbariumFlask({
       }
     }, 90);
 
+    // --- 完了時の排出演出 ---
+    // isDraining が立った瞬間のフラスコ内のいちご全てを排出対象として
+    // キューに積み、90msおきに1個ずつ「入口(首)」めがけて勢いよく打ち上げる。
+    // 通常の重力・すり抜け防止の速度クランプの対象からは外し、
+    // 首を通過した瞬間に1個ぶんの通過コールバックを呼んで除去する。
+    const exitingBodies = new Set<any>();
+    const exitQueue: any[] = [];
+    let exitDispatchDone = false;
+    let exitCompleteFired = false;
+
+    const maybeFireDrainComplete = () => {
+      if (
+        exitDispatchDone &&
+        exitQueue.length === 0 &&
+        exitingBodies.size === 0 &&
+        !exitCompleteFired
+      ) {
+        exitCompleteFired = true;
+        onDrainCompleteRef.current?.();
+      }
+    };
+
+    const ejectNext = () => {
+      const body = exitQueue.shift();
+      if (!body) return;
+      if (!Composite.allBodies(engine.world).includes(body)) {
+        // 既に何らかの理由で消えている場合はスキップ
+        maybeFireDrainComplete();
+        return;
+      }
+      // 計算量削減のため静止したいちごはスリープ状態になっており、
+      // その状態のまま setVelocity しても Matter.js は位置更新をスキップして
+      // しまい「完了時にいちごが動かない」原因になる。排出前に必ず起こす。
+      Sleeping.set(body, false);
+      exitingBodies.add(body);
+      Body.setVelocity(body, {
+        x: (cx - body.position.x) * 0.08 + (Math.random() - 0.5) * 1.5,
+        y: -16 - Math.random() * 4,
+      });
+    };
+
+    const exitTicker = setInterval(() => {
+      if (exitQueue.length > 0) {
+        ejectNext();
+      } else if (exitDispatchDone) {
+        clearInterval(exitTicker);
+      }
+    }, 70);
+
+    const startDrain = () => {
+      const bodies = Composite.allBodies(engine.world).filter(
+        (b: any) => b.label === "strawberry" && !exitingBodies.has(b),
+      );
+      // ランダムな順番で飛び出すと自然に見える
+      for (let i = bodies.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bodies[i], bodies[j]] = [bodies[j], bodies[i]];
+      }
+      exitQueue.push(...bodies);
+      exitCompleteFired = false;
+      // これ以上キューに積まれることはない(=列挙は完了した)ので、
+      // あとは exitQueue が空になり、飛行中のいちごも無くなれば完了とみなせる。
+      exitDispatchDone = true;
+      if (exitQueue.length === 0) {
+        maybeFireDrainComplete();
+        return;
+      }
+      // 最初の1個はすぐに飛び出させ、残りは exitTicker が70msおきに続ける
+      ejectNext();
+    };
+    drainFnRef.current = startDrain;
+
     // すり抜け防止: 薄い壁を高速で通過しないよう、いちごの最大速度をクランプ
     // (壁厚16pxに対し、1ステップの移動量が壁厚を超えないよう上限を設定)
     const MAX_SPEED = 12;
@@ -290,7 +377,29 @@ export default function HerbariumFlask({
 
         // 画面外に落ちたものは除去
         if (body.position.y > height + 100) {
+          if (exitingBodies.delete(body)) maybeFireDrainComplete();
           Composite.remove(engine.world, body);
+          continue;
+        }
+
+        if (exitingBodies.has(body)) {
+          // 排出中は通常の速度クランプの対象外にし、まっすぐ勢いよく
+          // 首を抜けて画面外まで飛んでいくよう毎フレーム上向きの速度を保つ。
+          if (body.isSleeping) Sleeping.set(body, false);
+          Body.setVelocity(body, {
+            x: body.velocity.x * 0.92,
+            y: Math.min(body.velocity.y, -14),
+          });
+
+          if (body.position.y < neckTop) {
+            exitingBodies.delete(body);
+            spawnedCountRef.current = Math.max(0, spawnedCountRef.current - 1);
+            Composite.remove(engine.world, body);
+            // フラスコ中央の数字もその場でカウントダウンさせ、
+            // 「1個ずつ入口を抜けて出ていった」ことが数字でも分かるようにする
+            countRef.current = Math.max(0, countRef.current - 1);
+            maybeFireDrainComplete();
+          }
           continue;
         }
 
@@ -384,17 +493,23 @@ export default function HerbariumFlask({
 
     return () => {
       clearInterval(dropTicker);
+      clearInterval(exitTicker);
       Render.stop(render);
       Runner.stop(runner);
       Engine.clear(engine);
       if (render.canvas) render.canvas.remove();
       engineRef.current = null;
       dropFnRef.current = null;
+      drainFnRef.current = null;
     };
   }, [isLoaded, width, height, glassColorHex]);
 
   useEffect(() => {
     if (!isLoaded || !dropFnRef.current || !bodiesApiRef.current) return;
+    // 排出演出中はこちらの通常同期ロジックを止めておく。
+    // (排出が終わったタイミングで呼び出し側が count を実値に合わせてくれるので、
+    // その時にあらためてこの effect が動いて整合を取る)
+    if (isDraining) return;
 
     if (count === 0) {
       const { Composite, engine } = bodiesApiRef.current;
@@ -414,7 +529,17 @@ export default function HerbariumFlask({
     if (diff > 0) {
       dropFnRef.current(diff);
     }
-  }, [count, isLoaded]);
+  }, [count, isLoaded, isDraining]);
+
+  // isDraining が false→true に切り替わった瞬間に、その時点でフラスコに
+  // あるいちごを一斉に排出キューへ積んで、入口から順番に飛び出させる。
+  useEffect(() => {
+    if (!isLoaded || !drainFnRef.current) return;
+    if (isDraining && !wasDrainingRef.current) {
+      drainFnRef.current();
+    }
+    wasDrainingRef.current = isDraining;
+  }, [isDraining, isLoaded]);
 
   return (
     <div

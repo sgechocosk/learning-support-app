@@ -30,7 +30,7 @@ export const AiTaskReviewBar = ({
         bottom: `calc(${AI_INPUT_BAR_FOOTER_TUCK_HEIGHT} + 64px + 8px)`,
       }}
     >
-      <div className="w-full max-w-md pointer-events-auto bg-white rounded-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.12)] border border-sky-100 px-3 py-2.5 flex flex-col gap-2">
+      <div className="w-full pointer-events-auto bg-white rounded-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.12)] border border-sky-100 px-3 py-2.5 flex flex-col gap-2">
         {errorMsg && (
           <p className="text-xs text-red-500 flex items-center gap-1">
             <AlertCircle size={14} className="shrink-0" />

@@ -340,17 +340,14 @@ export default function HerbariumFlask({
       } else if (exitDispatchDone) {
         clearInterval(exitTicker);
       }
-    }, 70);
+    }, 20);
 
     const startDrain = () => {
       const bodies = Composite.allBodies(engine.world).filter(
         (b: any) => b.label === "strawberry" && !exitingBodies.has(b),
       );
-      // ランダムな順番で飛び出すと自然に見える
-      for (let i = bodies.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [bodies[i], bodies[j]] = [bodies[j], bodies[i]];
-      }
+      // 上に積み重なっているもの(y座標が小さい=画面上側)から順に排出する
+      bodies.sort((a: any, b: any) => a.position.y - b.position.y);
       exitQueue.push(...bodies);
       exitCompleteFired = false;
       // これ以上キューに積まれることはない(=列挙は完了した)ので、

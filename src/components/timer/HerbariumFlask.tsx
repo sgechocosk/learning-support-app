@@ -291,11 +291,11 @@ export default function HerbariumFlask({
         dropOne();
         pendingCountRef.current -= 1;
       }
-    }, 90);
+    }, 300);
 
     // --- 完了時の排出演出 ---
     // isDraining が立った瞬間のフラスコ内のいちご全てを排出対象として
-    // キューに積み、90msおきに1個ずつ「入口(首)」めがけて勢いよく打ち上げる。
+    // キューに積み、300msおきに1個ずつ「入口(首)」めがけて勢いよく打ち上げる。
     // 通常の重力・すり抜け防止の速度クランプの対象からは外し、
     // 首を通過した瞬間に1個ぶんの通過コールバックを呼んで除去する。
     const exitingBodies = new Set<any>();
@@ -357,7 +357,7 @@ export default function HerbariumFlask({
         maybeFireDrainComplete();
         return;
       }
-      // 最初の1個はすぐに飛び出させ、残りは exitTicker が70msおきに続ける
+      // 最初の1個はすぐに飛び出させ、残りは exitTicker が20msおきに続ける
       ejectNext();
     };
     drainFnRef.current = startDrain;

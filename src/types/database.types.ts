@@ -84,6 +84,54 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          created_at: string;
+          id: string;
+          message: string;
+          pair_id: string;
+          read_at: string | null;
+          task_id: string | null;
+          title: string;
+          type: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          message: string;
+          pair_id: string;
+          read_at?: string | null;
+          task_id?: string | null;
+          title: string;
+          type: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          message?: string;
+          pair_id?: string;
+          read_at?: string | null;
+          task_id?: string | null;
+          title?: string;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pairs: {
         Row: {
           created_at: string | null;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Icon, X, Plus } from "lucide-react";
+import { Icon, X, Plus, Bell, BellOff } from "lucide-react";
 import { strawberry } from "@lucide/lab";
 import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
@@ -17,6 +17,7 @@ interface TaskFormProps {
     rewardPoints: number;
     scheduledAt?: string | null;
     isDaily?: boolean;
+    notify?: boolean;
   }) => Promise<{ error: string | null }>;
   editingTask?: Task | null;
   onCancelEdit?: () => void;
@@ -49,6 +50,8 @@ export const TaskForm = ({
   const [rewardPoints, setRewardPoints] = useState<number | "">(10);
   const [scheduledAt, setScheduledAt] = useState<string>("");
   const [isDaily, setIsDaily] = useState(false);
+  // 学習者への通知有無。設定は保存せず、フォームを開くたびに常にオンへ戻る。
+  const [notifyEnabled, setNotifyEnabled] = useState(true);
 
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -74,6 +77,9 @@ export const TaskForm = ({
       setRewardPoints(editingTask.reward_points);
       setScheduledAt(formatDateForInput(editingTask.scheduled_at));
       setIsDaily(editingTask.is_daily);
+      // 通知オン/オフは保存されない一時的な設定のため、
+      // 編集を開始するたびに毎回デフォルト（オン）へ戻す。
+      setNotifyEnabled(true);
     }
   }, [editingTask]);
 
@@ -100,6 +106,7 @@ export const TaskForm = ({
     setIsCreatingCategory(false);
     setNewCategoryName("");
     setErrorMsg(null);
+    setNotifyEnabled(true);
   };
 
   const handleAddCategory = async () => {
@@ -197,6 +204,7 @@ export const TaskForm = ({
           : null,
       rewardPoints: rewardPoints === "" ? 0 : rewardPoints,
       isDaily,
+      notify: notifyEnabled,
     });
 
     setIsSubmitting(false);
@@ -498,19 +506,48 @@ export const TaskForm = ({
 
         {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
 
-        <TutorialFieldHint
-          text="タップするとタスクが保存されます。"
-          placement="top"
-        >
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            data-tutorial-id="tutorial-submit-btn"
-            className="w-full mt-1 py-2.5 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50"
+        <div className="flex items-center gap-2 mt-1">
+          <TutorialFieldHint
+            text="オンにすると、保存したときに学習者へ通知が届きます。オフにすると今回だけ通知しません（次に開いたときは再びオンに戻ります）。"
+            placement="top"
           >
-            {isSubmitting ? "保存中..." : isEditing ? "更新する" : "作成する"}
-          </button>
-        </TutorialFieldHint>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic();
+                setNotifyEnabled((v) => !v);
+              }}
+              aria-pressed={notifyEnabled}
+              aria-label={
+                notifyEnabled
+                  ? "学習者への通知をオンにしています。タップでオフにする"
+                  : "学習者への通知をオフにしています。タップでオンにする"
+              }
+              title={notifyEnabled ? "学習者に通知する" : "学習者に通知しない"}
+              className={`shrink-0 p-2.5 rounded-xl border shadow-sm transition-colors ${
+                notifyEnabled
+                  ? "bg-sky-400 border-sky-400 text-white hover:bg-sky-500 active:bg-sky-600"
+                  : "bg-white border-sky-200 text-slate-400 hover:bg-sky-50"
+              }`}
+            >
+              {notifyEnabled ? <Bell size={18} /> : <BellOff size={18} />}
+            </button>
+          </TutorialFieldHint>
+
+          <TutorialFieldHint
+            text="タップするとタスクが保存されます。"
+            placement="top"
+          >
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              data-tutorial-id="tutorial-submit-btn"
+              className="flex-1 py-2.5 bg-sky-400 text-white font-semibold rounded-xl shadow-sm hover:bg-sky-500 active:bg-sky-600 transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? "保存中..." : isEditing ? "更新する" : "作成する"}
+            </button>
+          </TutorialFieldHint>
+        </div>
       </form>
     </div>
   );

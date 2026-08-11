@@ -13,6 +13,7 @@ interface TaskContextType {
     rewardPoints: number;
     scheduledAt?: string | null;
     isDaily?: boolean;
+    notify?: boolean;
   }) => Promise<{ error: string | null }>;
   updateTask: (
     taskId: string,
@@ -22,6 +23,7 @@ interface TaskContextType {
       rewardPoints?: number;
       scheduledAt?: string | null;
       isDaily?: boolean;
+      notify?: boolean;
     },
   ) => Promise<{ error: string | null }>;
   createTasksBulk: (
@@ -128,23 +130,56 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [pairId]);
 
+  // 学習者への通知（タスクの追加・更新）を送る。
+  // 通知の作成自体が失敗しても、タスク操作そのものは既に成功しているため
+  // ここでのエラーは握りつぶし、画面には影響させない。
+  const sendTaskNotification = async (
+    kind: "task_created" | "task_updated",
+    title: string,
+    taskId: string | null,
+  ) => {
+    if (!pairId) return;
+    const message =
+      kind === "task_created"
+        ? `新しいタスク「${title}」が追加されました`
+        : `タスク「${title}」が更新されました`;
+
+    await supabase.from("notifications").insert({
+      pair_id: pairId,
+      task_id: taskId,
+      type: kind,
+      title,
+      message,
+    });
+  };
+
   const createTask: TaskContextType["createTask"] = async ({
     title,
     categoryId,
     rewardPoints,
     scheduledAt = null,
     isDaily = false,
+    notify = true,
   }) => {
     if (!pairId) return { error: "pair not found" };
-    const { error } = await supabase.from("tasks").insert({
-      pair_id: pairId,
-      category_id: categoryId,
-      title,
-      reward_points: rewardPoints,
-      scheduled_at: scheduledAt,
-      is_daily: isDaily,
-    });
-    if (!error) await fetchTasks(true);
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        pair_id: pairId,
+        category_id: categoryId,
+        title,
+        reward_points: rewardPoints,
+        scheduled_at: scheduledAt,
+        is_daily: isDaily,
+      })
+      .select("id")
+      .single();
+
+    if (!error) {
+      await fetchTasks(true);
+      if (notify)
+        await sendTaskNotification("task_created", title, data?.id ?? null);
+    }
     return { error: error?.message ?? null };
   };
 
@@ -194,7 +229,15 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       .update(payload)
       .eq("id", taskId);
 
-    if (!error) await fetchTasks(true);
+    if (!error) {
+      await fetchTasks(true);
+      const notify = updates.notify ?? true;
+      const title =
+        updates.title ?? tasks.find((t) => t.id === taskId)?.title ?? "";
+      if (notify && title) {
+        await sendTaskNotification("task_updated", title, taskId);
+      }
+    }
     return { error: error?.message ?? null };
   };
 

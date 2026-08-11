@@ -8,6 +8,8 @@ import { Modal } from "../components/ui/Modal";
 import { useHaptic } from "../hooks/useHaptic";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useProfile } from "../hooks/useProfile";
+import { useNotificationPermissionPrompt } from "../hooks/useNotificationPermissionPrompt";
+import { NotificationPermissionModal } from "../components/ui/NotificationPermissionModal";
 import {
   MAX_INTERVAL_MINUTES,
   MIN_INTERVAL_MINUTES,
@@ -217,6 +219,13 @@ function LearnerTimerPanel() {
   const [completeError, setCompleteError] = useState(false);
   const wasRunningBeforeCompleteRef = useRef(false);
 
+  const {
+    isPromptOpen: isNotificationPromptOpen,
+    guard: guardWithNotificationPrompt,
+    confirmEnable: confirmNotificationPermission,
+    dismissPrompt: dismissNotificationPrompt,
+  } = useNotificationPermissionPrompt();
+
   // 完了演出中(いちごが入口から飛び出している間)は、フラスコに渡す個数を
   // サーバー由来のリアルタイム値ではなくこの値で固定し、演出が終わるまで
   // 「0個にリセットされた瞬間に全部消える」のを防ぐ。
@@ -244,7 +253,7 @@ function LearnerTimerPanel() {
     if (isRunning) {
       stop();
     } else {
-      start();
+      guardWithNotificationPrompt(start);
     }
   };
 
@@ -262,7 +271,7 @@ function LearnerTimerPanel() {
     setShowComplete(false);
     setCompleteError(false);
     if (wasRunningBeforeCompleteRef.current) {
-      start();
+      guardWithNotificationPrompt(start);
     }
   };
 
@@ -450,6 +459,12 @@ function LearnerTimerPanel() {
           </button>
         </div>
       </Modal>
+
+      <NotificationPermissionModal
+        isOpen={isNotificationPromptOpen}
+        onEnable={confirmNotificationPermission}
+        onDismiss={dismissNotificationPrompt}
+      />
 
       <TaskTutorial
         role="learner"

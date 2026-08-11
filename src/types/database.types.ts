@@ -132,6 +132,54 @@ export type Database = {
           },
         ];
       };
+      push_subscriptions: {
+        Row: {
+          auth_key: string;
+          created_at: string;
+          endpoint: string;
+          id: string;
+          p256dh: string;
+          pair_id: string;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          auth_key: string;
+          created_at?: string;
+          endpoint: string;
+          id?: string;
+          p256dh: string;
+          pair_id: string;
+          user_agent?: string | null;
+          user_id: string;
+        };
+        Update: {
+          auth_key?: string;
+          created_at?: string;
+          endpoint?: string;
+          id?: string;
+          p256dh?: string;
+          pair_id?: string;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pairs: {
         Row: {
           created_at: string | null;

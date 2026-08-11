@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "./useProfile";
 import { useTimerSettings } from "./useTimerSettings";
+import { useAppBadge } from "./useAppBadge";
 
 export const MIN_INTERVAL_MINUTES = 1;
 export const MAX_INTERVAL_MINUTES = 10;
@@ -226,6 +227,11 @@ export const useWorkTimer = () => {
     0,
     (strawberryCount + 1) * intervalMs - elapsedMs,
   );
+
+  // タイマー作動中に貯まったいちごの個数を PWA アイコンの未読件数バッジとして表示する。
+  // 停止中（isRunning === false）はバッジを消す。
+  // Badging API 未対応のブラウザでは useAppBadge 内で何もしないため安全に呼び出せる。
+  useAppBadge(serverState.isRunning ? strawberryCount : 0);
 
   /**
    * サーバーに「未付与分のいちごを付与して」と伝える。

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "./useProfile";
 import { useTimerSettings } from "./useTimerSettings";
-import { useAppBadge, requestBadgeNotificationPermission } from "./useAppBadge";
+import { useAppBadge } from "./useAppBadge";
 
 export const MIN_INTERVAL_MINUTES = 1;
 export const MAX_INTERVAL_MINUTES = 10;
@@ -304,11 +304,6 @@ export const useWorkTimer = () => {
 
   const start = useCallback(async () => {
     if (!learnerId) return;
-
-    // ボタンのクリック（ユーザー操作）に直接紐づくタイミングで許可を求める。
-    // iOS では通知許可が下りていないとバッジが表示されないため、
-    // タイマー開始という分かりやすい文脈でリクエストしておく。
-    requestBadgeNotificationPermission();
 
     // 即時のUI反応用の楽観的更新。実際の開始時刻はサーバーの応答で必ず
     // 上書きされる（既に他タブ/他デバイスで動いていれば、その開始時刻に

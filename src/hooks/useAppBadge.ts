@@ -70,13 +70,14 @@ export const requestBadgeNotificationPermission = async (): Promise<void> => {
  * - count に正の整数を渡すとその数がアプリアイコンに表示される。
  * - count が 0 / null / undefined の場合はバッジを消す。
  * - Badging API 未対応のブラウザでは何もしない（例外を投げない）。
- * - iOS/iPadOS では通知許可が下りていないとバッジが表示されないため、
- *   バッジを立てようとするタイミングで許可が未回答（"default"）であれば
- *   自動的に許可リクエストを行う。
+ * - 通知許可のリクエストはこのフックの責務ではない
+ *   （useNotificationPermissionPrompt 経由で、説明ダイアログを挟んだ上で
+ *   別途リクエストする）。許可が下りていない状態で setAppBadge を呼んでも
+ *   iOS では単に無視されるだけなので安全。
  *
  * 呼び出し側は「現在表示したい数」を渡すだけでよく、
  * 実際に setAppBadge / clearAppBadge を呼ぶかどうかの重複呼び出し抑制や
- * エラーハンドリング、通知許可のリクエストはこのフック内で行う。
+ * エラーハンドリングはこのフック内で行う。
  */
 export const useAppBadge = (count: number | null | undefined) => {
   const lastSentRef = useRef<number | null>(null);
@@ -95,14 +96,13 @@ export const useAppBadge = (count: number | null | undefined) => {
     lastSentRef.current = nextValue;
 
     if (nextValue > 0) {
-      // iOS では通知許可が無いとバッジが表示されないため、
-      // バッジを立てる直前に（未回答であれば）許可をリクエストする。
-      // すでに許可/拒否が確定していれば即座に解決するので実質待たない。
-      requestBadgeNotificationPermission().finally(() => {
-        nav.setAppBadge(nextValue).catch(() => {
-          // 一部環境（未インストール状態、通知拒否済みなど）では失敗する/
-          // 無視されることがあるが、アプリの動作には影響しないため握りつぶす。
-        });
+      // 通知許可のリクエストはここでは行わない。
+      // iOS で許可が下りていなければ setAppBadge は静かに無視されるだけなので、
+      // 実際の許可リクエストは useNotificationPermissionPrompt 経由で
+      // 「説明ダイアログ→OS標準ダイアログ」の順にユーザー操作の中で行う。
+      nav.setAppBadge(nextValue).catch(() => {
+        // 一部環境（未インストール状態、通知拒否済みなど）では失敗する/
+        // 無視されることがあるが、アプリの動作には影響しないため握りつぶす。
       });
     } else {
       nav.clearAppBadge().catch(() => {});

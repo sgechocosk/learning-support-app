@@ -25,11 +25,27 @@ const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
  * Safariタブ上では ServiceWorkerContainer.register 自体は可能でも
  * PushManager.subscribe が失敗する（iOSの仕様）。
  */
-export const isPushSupported = (): boolean =>
-  typeof window !== "undefined" &&
-  "serviceWorker" in navigator &&
-  "PushManager" in window &&
-  !!VAPID_PUBLIC_KEY;
+export const isPushSupported = (): boolean => getPushUnsupportedReason() === null;
+
+/**
+ * isPushSupported() が false になる場合、具体的にどの条件で弾かれたのかを返す。
+ * デバッグ用。特に VAPID公開鍵が未設定（.envの設定漏れ・ビルド未反映）は
+ * コンソールにも画面にも何のエラーも出ずに「何も起きない」ように見えるため、
+ * 原因切り分けの最有力候補として明示的にチェックする。
+ */
+export const getPushUnsupportedReason = (): string | null => {
+  if (typeof window === "undefined") return "window is undefined";
+  if (!("serviceWorker" in navigator)) {
+    return "このブラウザはService Workerに対応していません";
+  }
+  if (!("PushManager" in window)) {
+    return "このブラウザはPushManagerに対応していません（iOSの場合、ホーム画面に追加してから起動しているか確認してください）";
+  }
+  if (!VAPID_PUBLIC_KEY) {
+    return "VITE_VAPID_PUBLIC_KEYが設定されていません（環境変数の設定漏れ、またはビルドに反映されていません）";
+  }
+  return null;
+};
 
 /**
  * iOSでPWAとして（ホーム画面から）起動されているかどうかの簡易判定。

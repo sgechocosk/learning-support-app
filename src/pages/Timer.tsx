@@ -203,6 +203,7 @@ function LearnerTimerPanel() {
     profile?.id,
     pairId,
   );
+
   const triggerHaptic = useHaptic();
   const { isLoading: isSettingsLoading } = useTimerSettings();
   const {
@@ -471,7 +472,6 @@ function LearnerTimerPanel() {
         onEnable={async () => {
           await confirmNotificationPermission();
           // 許可ダイアログでOKした直後にpush購読も作成する。
-          // （許可が下りていなければ subscribePush 内部で何もせず終わる）
           await subscribePush();
         }}
         onDismiss={dismissNotificationPrompt}

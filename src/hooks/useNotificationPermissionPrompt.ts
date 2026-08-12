@@ -1,8 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import {
-  isAppBadgeSupported,
-  requestBadgeNotificationPermission,
-} from "./useAppBadge";
+import { requestBadgeNotificationPermission } from "./useAppBadge";
 
 const getNotificationPermission = (): NotificationPermission | null => {
   if (typeof Notification === "undefined") return null;
@@ -33,13 +30,20 @@ const getNotificationPermission = (): NotificationPermission | null => {
  *
  * guard(action) は:
  * - 通知許可がすでに確定済み（許可 or 拒否）、または
- *   このブラウザ/環境がそもそもバッジ・通知に対応していない場合は
+ *   このブラウザ/環境がそもそも Notification API に対応していない場合は
  *   説明ダイアログを出さずに即 action() を実行する。
  * - 通知許可が未回答（"default"）の場合のみ、説明ダイアログを開き、
  *   action は「有効にする」または「あとで」が選ばれるまで保留する。
  *
  * 許可が未回答である限り、タイマー開始のたびに説明ダイアログが
  * 再度表示される（＝許可 or 拒否が確定するまで毎回挟まる）仕様。
+ *
+ * ※ この許可は「バッジ表示」と「Web Push（OS通知）」の両方に使われる。
+ *   以前は isAppBadgeSupported()（Badging API対応）が true の場合のみ
+ *   ダイアログを出す実装になっていたが、これだとBadging API非対応の
+ *   環境（Web Pushは使えてもバッジ非対応、等）では通知許可を
+ *   リクエストする機会自体が失われ、Web Pushの購読もできなくなる
+ *   バグになっていたため、バッジ対応の有無とは切り離した。
  */
 export const useNotificationPermissionPrompt = () => {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
@@ -53,8 +57,11 @@ export const useNotificationPermissionPrompt = () => {
 
   const guard = useCallback((action: () => void) => {
     const permission = getNotificationPermission();
-    const shouldExplainFirst =
-      isAppBadgeSupported() && permission === "default";
+    // Notification API自体が無い環境(permission === null)では
+    // どうしようもないのでダイアログを出さない。
+    // それ以外で未回答("default")なら、バッジ対応の有無に関わらず
+    // 必ずダイアログを出す(Web Pushの許可取得もここにかかっているため)。
+    const shouldExplainFirst = permission === "default";
 
     if (!shouldExplainFirst) {
       action();

@@ -133,6 +133,15 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   // 学習者への通知（タスクの追加・更新）を送る。
   // 通知の作成自体が失敗しても、タスク操作そのものは既に成功しているため
   // ここでのエラーは握りつぶし、画面には影響させない。
+  //
+  // Web Push（OS通知）は、notificationsへのINSERT成功後にこの関数から
+  // 直接 Edge Function (send-push) を呼び出して送信する。
+  // 以前はDatabase Webhook/DBトリガー経由で送っていたが、
+  // トリガー用SQL(pg_net)がプロジェクトの設定次第で失敗し、
+  // notificationsへのINSERT自体を巻き込んでロールバックさせてしまう
+  // （＝お知らせが一切保存されない）事故が起きたため、
+  // 「INSERTを先に確定させ、成功したら別途Edge Functionを呼ぶ」
+  // というクライアント主導の設計に変更している。
   const sendTaskNotification = async (
     kind: "task_created" | "task_updated",
     title: string,
@@ -144,13 +153,29 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         ? `新しいタスク「${title}」が追加されました`
         : `タスク「${title}」が更新されました`;
 
-    await supabase.from("notifications").insert({
-      pair_id: pairId,
-      task_id: taskId,
-      type: kind,
-      title,
-      message,
-    });
+    const { data, error } = await supabase
+      .from("notifications")
+      .insert({
+        pair_id: pairId,
+        task_id: taskId,
+        type: kind,
+        title,
+        message,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      console.error("notification insert failed:", error);
+      return;
+    }
+
+    // push送信はベストエフォート。失敗してもお知らせ画面への表示には影響しない。
+    supabase.functions
+      .invoke("send-push", { body: { notificationId: data.id } })
+      .catch((err) => {
+        console.error("send-push invoke failed:", err);
+      });
   };
 
   const createTask: TaskContextType["createTask"] = async ({

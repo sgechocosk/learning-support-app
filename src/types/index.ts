@@ -113,7 +113,12 @@ export interface AppNotification {
   id: string;
   pair_id: string;
   task_id: string | null;
-  type: "task_created" | "task_updated" | string;
+  type:
+    | "task_created"
+    | "task_updated"
+    | "task_completed"
+    | "task_deleted"
+    | string;
   title: string;
   message: string;
   read_at: string | null;

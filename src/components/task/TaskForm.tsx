@@ -537,6 +537,7 @@ export const TaskForm = ({
           <TutorialFieldHint
             text="タップするとタスクが保存されます。"
             placement="top"
+            className="flex-1 flex"
           >
             <button
               type="submit"

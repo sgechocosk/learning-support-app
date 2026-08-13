@@ -131,7 +131,7 @@ export const Overlay = ({
         }`}
       >
         {type === "notification" ? (
-          <div className="flex flex-col gap-3 w-full max-w-md mx-auto">
+          <div className="flex flex-col gap-3 w-full max-w-md sm:max-w-2xl lg:max-w-3xl mx-auto">
             {isLoadingNotifications ? (
               <p className="text-sky-500 text-sm text-center mt-8">
                 読み込み中...

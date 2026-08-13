@@ -86,6 +86,31 @@ export const registerServiceWorker =
  * （複数回呼んでも安全＝冪等）。
  *
  * 呼び出し前提: Notification.permission === "granted"
+ *
+ * ---
+ * 【複数アカウント/複数端末についての設計メモ】
+ * push購読（endpoint）はブラウザのService Worker登録1つにつき1つしか
+ * 持てない（同じapplicationServerKeyで複数回subscribe()しても、
+ * ブラウザは同じ既存のendpointを返す）。つまり、同じ端末・同じPWA
+ * インストール上で複数アカウントを同時に「切り替えて」ログインした場合、
+ * その端末が受け取れるpushは常に「直近でensurePushSubscriptionを
+ * 呼んだアカウント」1件分だけになる。
+ *
+ * これはネイティブのInstagramアプリ（アカウントごとに個別のpushトークンを
+ * 登録でき、切り替えなくても複数アカウント分のpushを同時受信できる）とは
+ * 異なる挙動だが、Web Pushの仕様上の制約であり、このアプリに限った話ではない。
+ * 代わりに、Facebook Messengerの「共有端末での複数アカウント」機能に近い、
+ * 「その端末は常に直近ログインしたアカウント宛のpushだけを受け取る」
+ * という挙動を採用している（onConflict: "endpoint" による上書き＝
+ * 一種の「その端末の受信先をこのアカウントに切り替える」操作）。
+ *
+ * 1つの端末で複数アカウント分のpushを同時に受け取りたい場合は、
+ * ブラウザを分ける／PWAを複数アイコンでインストールする、といった
+ * 端末側の対応が必要（endpointがインストールごとに別になるため）。
+ *
+ * ログアウト時に removePushSubscription() を呼ぶことで、
+ * 「ログアウトしたのに他人のこの端末にそのアカウント宛の通知が
+ * 届き続ける」事故を防いでいる（useAuth.ts の signOut 参照）。
  */
 export const ensurePushSubscription = async (
   userId: string,

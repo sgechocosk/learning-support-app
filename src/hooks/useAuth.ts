@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { removePushSubscription } from "../lib/push";
 
 export const useAuth = () => {
   const initialAuth = localStorage.getItem("is_logged_in") === "true";
@@ -48,6 +49,16 @@ export const useAuth = () => {
   }, []);
 
   const signOut = async () => {
+    // この端末のpush購読を、認証がまだ有効なうちに（RLSでの削除が
+    // 通る間に）先に解除しておく。家族共有端末などで複数アカウントを
+    // 切り替えて使うケースでは、ログアウト後もこの端末にログアウトした
+    // アカウント宛のpush通知が届き続けてしまう（＝次にこの端末を
+    // 使う別の人にその内容が見えてしまう）事故を防ぐため。
+    // 失敗してもログアウト自体は継続する（ベストエフォート）。
+    await removePushSubscription().catch((err) => {
+      console.warn("[auth] signOut時のpush購読解除に失敗:", err);
+    });
+
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };

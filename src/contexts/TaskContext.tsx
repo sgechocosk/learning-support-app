@@ -13,6 +13,7 @@ interface TaskContextType {
     rewardPoints: number;
     scheduledAt?: string | null;
     isDaily?: boolean;
+    notify?: boolean;
   }) => Promise<{ error: string | null }>;
   updateTask: (
     taskId: string,
@@ -22,6 +23,7 @@ interface TaskContextType {
       rewardPoints?: number;
       scheduledAt?: string | null;
       isDaily?: boolean;
+      notify?: boolean;
     },
   ) => Promise<{ error: string | null }>;
   createTasksBulk: (
@@ -128,23 +130,117 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [pairId]);
 
+  // お知らせ（notifications）へレコードを作成する共通処理。
+  // 通知の作成自体が失敗しても、タスク操作そのものは既に成功しているため
+  // ここでのエラーは握りつぶし、画面には影響させない。
+  //
+  // Web Push（OS通知）は、notificationsへのINSERT成功後にこの関数から
+  // 直接 Edge Function (send-push) を呼び出して送信する。
+  // 以前はDatabase Webhook/DBトリガー経由で送っていたが、
+  // トリガー用SQL(pg_net)がプロジェクトの設定次第で失敗し、
+  // notificationsへのINSERT自体を巻き込んでロールバックさせてしまう
+  // （＝お知らせが一切保存されない）事故が起きたため、
+  // 「INSERTを先に確定させ、成功したら別途Edge Functionを呼ぶ」
+  // というクライアント主導の設計に変更している。
+  //
+  // sendPush=false の場合はお知らせ画面への記録のみ行い、
+  // Web Push（OS通知）は送らない（例: タスク削除時）。
+  const recordNotification = async (
+    kind: "task_created" | "task_updated" | "task_completed" | "task_deleted",
+    title: string,
+    message: string,
+    taskId: string | null,
+    sendPush: boolean,
+  ) => {
+    if (!pairId) return;
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .insert({
+        pair_id: pairId,
+        task_id: taskId,
+        type: kind,
+        title,
+        message,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      console.error("notification insert failed:", error);
+      return;
+    }
+
+    if (!sendPush) return;
+
+    // push送信はベストエフォート。失敗してもお知らせ画面への表示には影響しない。
+    supabase.functions
+      .invoke("send-push", { body: { notificationId: data.id } })
+      .catch((err) => {
+        console.error("send-push invoke failed:", err);
+      });
+  };
+
+  // 学習者への通知（タスクの追加・更新）を送る。OS通知（push）込み。
+  const sendTaskNotification = async (
+    kind: "task_created" | "task_updated",
+    title: string,
+    taskId: string | null,
+  ) => {
+    const message =
+      kind === "task_created"
+        ? `新しいタスク「${title}」が追加されました`
+        : `タスク「${title}」が更新されました`;
+    await recordNotification(kind, title, message, taskId, true);
+  };
+
+  // タスク削除時の記録。お知らせ画面には記録するが、OS通知（push）は送らない。
+  //
+  // 注意: この時点でタスク本体は既にtasksテーブルから削除済みのため、
+  // notifications.task_idにそのIDをそのまま入れるとnotifications_task_id_fkey
+  // 違反（23503）でINSERT自体が失敗する。削除済みタスクを指す意味もないため、
+  // task_idは常にnullで記録する。
+  const recordTaskDeletedNotification = async (title: string) => {
+    const message = `タスク「${title}」が削除されました`;
+    await recordNotification("task_deleted", title, message, null, false);
+  };
+
+  // タスク完了時、支援者への通知を送る。お知らせ画面への記録とOS通知（push）の両方。
+  const sendTaskCompletedNotification = async (
+    title: string,
+    taskId: string | null,
+  ) => {
+    const message = `タスク「${title}」が完了しました`;
+    await recordNotification("task_completed", title, message, taskId, true);
+  };
+
   const createTask: TaskContextType["createTask"] = async ({
     title,
     categoryId,
     rewardPoints,
     scheduledAt = null,
     isDaily = false,
+    notify = true,
   }) => {
     if (!pairId) return { error: "pair not found" };
-    const { error } = await supabase.from("tasks").insert({
-      pair_id: pairId,
-      category_id: categoryId,
-      title,
-      reward_points: rewardPoints,
-      scheduled_at: scheduledAt,
-      is_daily: isDaily,
-    });
-    if (!error) await fetchTasks(true);
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        pair_id: pairId,
+        category_id: categoryId,
+        title,
+        reward_points: rewardPoints,
+        scheduled_at: scheduledAt,
+        is_daily: isDaily,
+      })
+      .select("id")
+      .single();
+
+    if (!error) {
+      await fetchTasks(true);
+      if (notify)
+        await sendTaskNotification("task_created", title, data?.id ?? null);
+    }
     return { error: error?.message ?? null };
   };
 
@@ -194,19 +290,36 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       .update(payload)
       .eq("id", taskId);
 
-    if (!error) await fetchTasks(true);
+    if (!error) {
+      await fetchTasks(true);
+      const notify = updates.notify ?? true;
+      const title =
+        updates.title ?? tasks.find((t) => t.id === taskId)?.title ?? "";
+      if (notify && title) {
+        await sendTaskNotification("task_updated", title, taskId);
+      }
+    }
     return { error: error?.message ?? null };
   };
 
   const deleteTask = async (taskId: string) => {
+    // 削除後は一覧から取れなくなるため、お知らせに使うタイトルは削除前に保持しておく。
+    const target = tasks.find((t) => t.id === taskId);
     const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-    if (!error) await fetchTasks(true);
+    if (!error) {
+      await fetchTasks(true);
+      // タスク削除は通知（push）なしでお知らせ画面にのみ記録する。
+      if (target?.title) {
+        await recordTaskDeletedNotification(target.title);
+      }
+    }
     return { error: error?.message ?? null };
   };
 
   const completeTask = async (taskId: string) => {
     const target = tasks.find((t) => t.id === taskId);
-    const rpcName = target?.is_completed ? "uncomplete_task" : "complete_task";
+    const wasCompleted = target?.is_completed ?? false;
+    const rpcName = wasCompleted ? "uncomplete_task" : "complete_task";
     const { error } = await supabase.rpc(rpcName, { task_id: taskId });
     if (!error) {
       // tasks.is_completed / total_completed_tasks（と即時付与設定の場合は
@@ -215,6 +328,12 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       // ここで明示的にプロフィールを再取得し、Realtime到達前でも
       // 確実に最新の値が表示されるようにする。
       await Promise.all([fetchTasks(true), refreshProfile()]);
+
+      // 未完了→完了への変化のときだけ、支援者へ通知する
+      // （完了の取り消し操作では通知しない）。
+      if (!wasCompleted && target?.title) {
+        await sendTaskCompletedNotification(target.title, taskId);
+      }
     }
     return { error: error?.message ?? null };
   };

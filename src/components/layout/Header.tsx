@@ -4,12 +4,14 @@ import type { OverlayType } from "../../types";
 import { Modal } from "../ui/Modal";
 import { useProfile } from "../../hooks/useProfile";
 import { useHaptic } from "../../hooks/useHaptic";
+import { APP_NAME } from "../../constants/app";
 
 interface HeaderProps {
   onOpenOverlay: (e: React.MouseEvent, type: OverlayType) => void;
 }
 
-const DEFAULT_PAIR_NAME = "学習支援アプリ";
+// ペア名が未設定のときのデフォルト表示名（=アプリ名）。
+const DEFAULT_PAIR_NAME = APP_NAME;
 const LONG_PRESS_DURATION_MS = 500;
 
 export const Header = ({ onOpenOverlay }: HeaderProps) => {

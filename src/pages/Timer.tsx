@@ -10,6 +10,7 @@ import { useWakeLock } from "../hooks/useWakeLock";
 import { useProfile } from "../hooks/useProfile";
 import { useNotificationPermissionPrompt } from "../hooks/useNotificationPermissionPrompt";
 import { NotificationPermissionModal } from "../components/ui/NotificationPermissionModal";
+import { usePushSubscription } from "../hooks/usePushSubscription";
 import {
   MAX_INTERVAL_MINUTES,
   MIN_INTERVAL_MINUTES,
@@ -197,6 +198,12 @@ function SupporterSettingsPanel() {
 }
 
 function LearnerTimerPanel() {
+  const { profile, pairId } = useProfile();
+  const { subscribeNow: subscribePush } = usePushSubscription(
+    profile?.id,
+    pairId,
+  );
+
   const triggerHaptic = useHaptic();
   const { isLoading: isSettingsLoading } = useTimerSettings();
   const {
@@ -462,7 +469,11 @@ function LearnerTimerPanel() {
 
       <NotificationPermissionModal
         isOpen={isNotificationPromptOpen}
-        onEnable={confirmNotificationPermission}
+        onEnable={async () => {
+          await confirmNotificationPermission();
+          // 許可ダイアログでOKした直後にpush購読も作成する。
+          await subscribePush();
+        }}
         onDismiss={dismissNotificationPrompt}
       />
 

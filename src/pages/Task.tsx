@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useProfile } from "../hooks/useProfile";
 import { useTask } from "../hooks/useTask";
@@ -14,9 +14,17 @@ import { SupporterTutorialContext } from "../tutorial/SupporterTutorialContext";
 import { getTutorialSteps } from "../tutorial/tutorialSteps";
 import { Modal } from "../components/ui/Modal";
 import { useHaptic } from "../hooks/useHaptic"; // 1. useHaptic をインポート
+import { useNotificationPermissionPrompt } from "../hooks/useNotificationPermissionPrompt";
+import { NotificationPermissionModal } from "../components/ui/NotificationPermissionModal";
+import { usePushSubscription } from "../hooks/usePushSubscription";
+
+// 支援者向け：通知許可の説明ダイアログに表示する案内文。
+// 学習者のタスク完了に気づけるようにするための通知であることを伝える。
+const SUPPORTER_NOTIFICATION_DESCRIPTION =
+  "学習者のタスク完了を確認するために通知をオンにすることをおすすめします。";
 
 export default function Task() {
-  const { profile } = useProfile();
+  const { profile, pairId } = useProfile();
   const {
     tasks,
     isLoading,
@@ -33,6 +41,28 @@ export default function Task() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskType | null>(null);
   const supporterTutorial = useSupporterTutorial();
+
+  const isSupporter = profile?.role === "supporter";
+
+  // タスク画面表示時、通知の許可がまだ未回答（"default"）の学習者・支援者に対して
+  // 「通知をオンにしませんか？」ダイアログを表示し、許可を求める。
+  const {
+    isPromptOpen: isNotificationPromptOpen,
+    guard: guardWithNotificationPrompt,
+    confirmEnable: confirmNotificationPermission,
+    dismissPrompt: dismissNotificationPrompt,
+  } = useNotificationPermissionPrompt();
+  const { subscribeNow: subscribePush } = usePushSubscription(
+    profile?.id,
+    pairId,
+  );
+
+  useEffect(() => {
+    // 何か操作をトリガーにするのではなく、タスク画面を開いたタイミングで
+    // 未回答の場合のみダイアログを表示したいので、no-opのアクションをguardに渡す。
+    guardWithNotificationPrompt(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 画面下の常設入力欄・レビュー用バーはApp.tsx側（タブ切り替えの影響を受けない場所）に
   // 常設されており、その状態はAiTaskAgentContext経由で共有される。
@@ -55,8 +85,6 @@ export default function Task() {
     usePullToRefresh<HTMLDivElement>({
       onRefresh: refreshTasks,
     });
-
-  const isSupporter = profile?.role === "supporter";
 
   // タスク画面には「2週間後」よりも前のタスクのみ表示する（完了済みも含む）。
   // 予定日未設定のタスクは対象外として常に表示する。
@@ -210,6 +238,19 @@ export default function Task() {
           </div>
         </Modal>
       )}
+
+      <NotificationPermissionModal
+        isOpen={isNotificationPromptOpen}
+        description={
+          isSupporter ? SUPPORTER_NOTIFICATION_DESCRIPTION : undefined
+        }
+        onEnable={async () => {
+          await confirmNotificationPermission();
+          // 許可ダイアログでOKした直後にpush購読も作成する。
+          await subscribePush();
+        }}
+        onDismiss={dismissNotificationPrompt}
+      />
     </>
   );
 }

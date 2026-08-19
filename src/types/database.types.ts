@@ -84,6 +84,102 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          created_at: string;
+          id: string;
+          message: string;
+          pair_id: string;
+          read_at: string | null;
+          task_id: string | null;
+          title: string;
+          type: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          message: string;
+          pair_id: string;
+          read_at?: string | null;
+          task_id?: string | null;
+          title: string;
+          type: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          message?: string;
+          pair_id?: string;
+          read_at?: string | null;
+          task_id?: string | null;
+          title?: string;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      push_subscriptions: {
+        Row: {
+          auth_key: string;
+          created_at: string;
+          endpoint: string;
+          id: string;
+          p256dh: string;
+          pair_id: string;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          auth_key: string;
+          created_at?: string;
+          endpoint: string;
+          id?: string;
+          p256dh: string;
+          pair_id: string;
+          user_agent?: string | null;
+          user_id: string;
+        };
+        Update: {
+          auth_key?: string;
+          created_at?: string;
+          endpoint?: string;
+          id?: string;
+          p256dh?: string;
+          pair_id?: string;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pairs: {
         Row: {
           created_at: string | null;
@@ -515,6 +611,20 @@ export type Database = {
           points: number;
           total_points: number;
         }[];
+      };
+      // 【原因②対応】endpointの所有者に関わらずreassignできるSECURITY DEFINER関数。
+      // 呼び出し元(auth.uid())がp_pair_idの学習者/支援者本人であることを
+      // 関数内で検証したうえで push_subscriptions を upsert する。
+      // supabase/migrations/20260815000000_claim_push_subscription.sql 参照。
+      claim_push_subscription: {
+        Args: {
+          p_endpoint: string;
+          p_p256dh: string;
+          p_auth_key: string;
+          p_pair_id: string;
+          p_user_agent?: string | null;
+        };
+        Returns: undefined;
       };
       get_current_streak: { Args: { p_pair_id: string }; Returns: number };
       claim_task_points: { Args: { task_id: string }; Returns: undefined };

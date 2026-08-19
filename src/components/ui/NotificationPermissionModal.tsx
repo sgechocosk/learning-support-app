@@ -1,9 +1,14 @@
 import { Modal } from "./Modal";
 
+const DEFAULT_DESCRIPTION =
+  "新しいタスクの追加を通知したり、タイマーのいちごが貯まった数を表示したりするために通知をオンにしてね。";
+
 interface NotificationPermissionModalProps {
   isOpen: boolean;
   onEnable: () => void;
   onDismiss: () => void;
+  /** 説明文を上書きしたい場合に指定する（例: 支援者向けの案内文）。未指定時は学習者向けの標準文言。 */
+  description?: string;
 }
 
 /**
@@ -16,6 +21,7 @@ export const NotificationPermissionModal = ({
   isOpen,
   onEnable,
   onDismiss,
+  description = DEFAULT_DESCRIPTION,
 }: NotificationPermissionModalProps) => {
   return (
     <Modal
@@ -27,7 +33,7 @@ export const NotificationPermissionModal = ({
         通知をオンにしませんか？
       </h2>
       <p className="text-sm text-gray-500 leading-relaxed mb-5">
-        新しいタスクの追加を通知したり、タイマーのいちごが貯まった数を表示したりするために通知をオンにしてね。
+        {description}
       </p>
 
       <div className="flex gap-2">

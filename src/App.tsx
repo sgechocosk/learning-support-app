@@ -29,6 +29,7 @@ import { useAiTaskAgentContext } from "./contexts/AiTaskAgentContext";
 import { AiTaskInputBar } from "./components/task/AiTaskInputBar";
 import { AiTaskReviewBar } from "./components/task/AiTaskReviewBar";
 import { useProfile } from "./hooks/useProfile";
+import { usePushSubscription } from "./hooks/usePushSubscription";
 
 // タスクタブ表示中の支援者にのみ、AIへの指示入力欄とレビュー用バーを表示する。
 // TabContent(スライドアニメーションでtransformが付与される)の外側・
@@ -74,6 +75,11 @@ export function SupporterAiTaskDock({ activeTab }: { activeTab: number }) {
 // 学習者を招待する画面を表示する。
 function AuthenticatedGate({ children }: { children: React.ReactNode }) {
   const { profile, pairId, isLoading } = useProfile();
+
+  // 通知の許可が既に得られているセッション（前回付与済み等）では、
+  // どのタブを開いていてもアプリ起動時に自動でpush購読を作成/更新する。
+  // 未許可の間は何もしない（許可リクエスト自体はTimer開始時の導線のまま）。
+  usePushSubscription(profile?.id, pairId);
 
   if (isLoading) {
     return (

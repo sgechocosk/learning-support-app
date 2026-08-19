@@ -7,9 +7,7 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as
 /** base64url文字列(VAPID公開鍵)をpushManager.subscribeが要求するUint8Arrayに変換する */
 const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
 
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
@@ -25,7 +23,8 @@ const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
  * Safariタブ上では ServiceWorkerContainer.register 自体は可能でも
  * PushManager.subscribe が失敗する（iOSの仕様）。
  */
-export const isPushSupported = (): boolean => getPushUnsupportedReason() === null;
+export const isPushSupported = (): boolean =>
+  getPushUnsupportedReason() === null;
 
 /**
  * isPushSupported() が false になる場合、具体的にどの条件で弾かれたのかを返す。
@@ -113,9 +112,14 @@ export const registerServiceWorker =
  * 届き続ける」事故を防いでいる（useAuth.ts の signOut 参照）。
  */
 export const ensurePushSubscription = async (
+  // 【原因②対応の余波】保存先のuser_idはRPC内でauth.uid()から決めるため
+  // 実際には未使用だが、呼び出し元(usePushSubscription.ts)との互換性のため
+  // シグネチャは維持している。呼び出し元のuserIdと実際のセッション(auth.uid())が
+  // 万一ズレていても、常に「今ログイン中の本人」で登録される安全側の挙動になる。
   userId: string,
   pairId: string,
 ): Promise<{ error: string | null }> => {
+  void userId;
   if (!isPushSupported()) return { error: "push not supported" };
   if (Notification.permission !== "granted") {
     return { error: "permission not granted" };
@@ -145,17 +149,19 @@ export const ensurePushSubscription = async (
       return { error: "invalid subscription" };
     }
 
-    const { error } = await supabase.from("push_subscriptions").upsert(
-      {
-        user_id: userId,
-        pair_id: pairId,
-        endpoint: subscription.endpoint,
-        p256dh,
-        auth_key: auth,
-        user_agent: navigator.userAgent,
-      },
-      { onConflict: "endpoint" },
-    );
+    // 【原因②対応】従来はここで
+    //   supabase.from("push_subscriptions").upsert(..., { onConflict: "endpoint" })
+    // をクライアントから直接呼んでいたが、既存行(前の所有者)へのUPDATEになった際、
+    // RLSの USING (auth.uid() = user_id) が「更新前の既存行のuser_id」に対して
+    // 評価されるため、別アカウントへの引き継ぎ時にRLS違反で拒否されていた。
+    // 所有者に関わらずendpoint行をreassignできるSECURITY DEFINERなRPCを経由する。
+    const { error } = await supabase.rpc("claim_push_subscription", {
+      p_endpoint: subscription.endpoint,
+      p_p256dh: p256dh,
+      p_auth_key: auth,
+      p_pair_id: pairId,
+      p_user_agent: navigator.userAgent,
+    });
 
     return { error: error?.message ?? null };
   } catch (err) {
@@ -166,14 +172,42 @@ export const ensurePushSubscription = async (
   }
 };
 
-/** この端末のpush購読を解除し、DB上のレコードも削除する（通知をオフにする場合用） */
+/**
+ * この端末のpush購読を解除し、DB上のレコードも削除する（ログアウト時などに使用）。
+ *
+ * 【原因①対応】以前は navigator.serviceWorker.getRegistration()（その場で
+ * 「現在ページを制御しているSW」を問い合わせる方式）を使っていたが、
+ * iOS/iPadOS SafariのPWAはSWがページの制御を確立するタイミングが
+ * Chrome(Windows)と比べて不安定・遅延しやすく、その結果 registration や
+ * subscription が undefined/null になり、unsubscribe()もDBのdelete()も
+ * 一度も呼ばれないまま関数が無言で終了してしまうことがあった
+ * （例外も出ないため、コンソールにも画面にも手がかりが残らない）。
+ *
+ * ensurePushSubscription()と同じ取得経路
+ * （registerServiceWorker()のキャッシュ済みPromiseを再利用し、
+ *  navigator.serviceWorker.readyでactivateを待ってから
+ *  pushManager.getSubscription()を呼ぶ）に統一することで、
+ * Safariでも解除処理まで確実に到達させる。
+ */
 export const removePushSubscription = async (): Promise<void> => {
   if (!("serviceWorker" in navigator)) return;
-  const registration = await navigator.serviceWorker.getRegistration();
-  const subscription = await registration?.pushManager.getSubscription();
-  if (!subscription) return;
 
-  const endpoint = subscription.endpoint;
-  await subscription.unsubscribe().catch(() => {});
-  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  try {
+    const registration = await registerServiceWorker();
+    if (!registration) return;
+
+    await navigator.serviceWorker.ready;
+
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return;
+
+    const endpoint = subscription.endpoint;
+    await subscription.unsubscribe().catch(() => {});
+    await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  } catch (err) {
+    // ここで失敗しても致命的ではない（原因②のRPC側でも
+    // 別ユーザーによる引き継ぎができるようフォールバックしているが、
+    // 調査のためログには残しておく）。
+    console.error("removePushSubscription failed:", err);
+  }
 };

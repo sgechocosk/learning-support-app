@@ -612,6 +612,20 @@ export type Database = {
           total_points: number;
         }[];
       };
+      // 【原因②対応】endpointの所有者に関わらずreassignできるSECURITY DEFINER関数。
+      // 呼び出し元(auth.uid())がp_pair_idの学習者/支援者本人であることを
+      // 関数内で検証したうえで push_subscriptions を upsert する。
+      // supabase/migrations/20260815000000_claim_push_subscription.sql 参照。
+      claim_push_subscription: {
+        Args: {
+          p_endpoint: string;
+          p_p256dh: string;
+          p_auth_key: string;
+          p_pair_id: string;
+          p_user_agent?: string | null;
+        };
+        Returns: undefined;
+      };
       get_current_streak: { Args: { p_pair_id: string }; Returns: number };
       claim_task_points: { Args: { task_id: string }; Returns: undefined };
       complete_task: { Args: { task_id: string }; Returns: undefined };

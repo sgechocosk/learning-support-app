@@ -195,12 +195,14 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // タスク削除時の記録。お知らせ画面には記録するが、OS通知（push）は送らない。
-  const recordTaskDeletedNotification = async (
-    title: string,
-    taskId: string | null,
-  ) => {
+  //
+  // 注意: この時点でタスク本体は既にtasksテーブルから削除済みのため、
+  // notifications.task_idにそのIDをそのまま入れるとnotifications_task_id_fkey
+  // 違反（23503）でINSERT自体が失敗する。削除済みタスクを指す意味もないため、
+  // task_idは常にnullで記録する。
+  const recordTaskDeletedNotification = async (title: string) => {
     const message = `タスク「${title}」が削除されました`;
-    await recordNotification("task_deleted", title, message, taskId, false);
+    await recordNotification("task_deleted", title, message, null, false);
   };
 
   // タスク完了時、支援者への通知を送る。お知らせ画面への記録とOS通知（push）の両方。
@@ -308,7 +310,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       await fetchTasks(true);
       // タスク削除は通知（push）なしでお知らせ画面にのみ記録する。
       if (target?.title) {
-        await recordTaskDeletedNotification(target.title, taskId);
+        await recordTaskDeletedNotification(target.title);
       }
     }
     return { error: error?.message ?? null };

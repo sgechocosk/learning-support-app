@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePointEvents } from "../hooks/usePointEvents";
+import { useProfile } from "../hooks/useProfile";
+import SupporterLearningStats from "../components/home/SupporterLearningStats";
 
 const MAX_STRAWBERRIES = 90;
 
@@ -433,14 +435,21 @@ export default function Home() {
   // 日付の切り分け（4時境界）は DB 側トリガー（jst_date）で確定させており、
   // フロント側では二重計算しない。
   const { events, todayTotal, streakDays } = usePointEvents();
+  const { profile, pairId } = useProfile();
 
   const clampedCount = Math.max(0, Math.min(MAX_STRAWBERRIES, todayTotal));
+
+  // 学習時間帯のグラフ・通知候補は支援者のホーム画面にのみ表示する
+  // （学習者自身には見せない）。
+  const isSupporter = profile?.role === "supporter";
 
   return (
     <div className="flex flex-col items-center w-full">
       <StrawberryTree count={clampedCount} />
 
       <WeeklyStreakBar events={events} streakDays={streakDays} />
+
+      {isSupporter && <SupporterLearningStats pairId={pairId} />}
     </div>
   );
 }

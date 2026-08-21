@@ -58,9 +58,6 @@ export default function SupporterLearningStats({
           学習時間帯の傾向
         </span>
       </div>
-      <p className="text-[11px] text-gray-400 mb-3">
-        毎朝4時に更新されます（当日中は変化しません）
-      </p>
 
       {isStatsLoading ? (
         <div className="h-28 flex items-center justify-center text-sm text-gray-400">
@@ -127,7 +124,7 @@ export default function SupporterLearningStats({
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-400" />
-              候補（通知OFF）
+              通知候補
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500" />
@@ -137,14 +134,9 @@ export default function SupporterLearningStats({
         </div>
       )}
 
-      <div className="mt-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
-        <div className="shrink-0">
-          <h3 className="text-sm font-bold text-amber-800">通知時刻の候補</h3>
-          <p className="text-[11px] text-amber-700/80 mt-0.5">
-            タップすると、その時刻に通知が届くようになります
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
+      <div className="mt-5 pt-4 border-t border-gray-100 flex flex-col gap-3">
+        <h3 className="text-sm font-bold text-gray-700">通知時刻の候補</h3>
+        <div className="flex flex-wrap gap-2">
           {hasData ? (
             candidateBins.map((binIndex) => {
               const isEnabled = enabledMap.get(binIndex) === true;
@@ -157,24 +149,18 @@ export default function SupporterLearningStats({
                   disabled={isNotifStateLoading || !pairId}
                   onClick={() => toggle(binIndex)}
                   className={
-                    "inline-flex items-center justify-center gap-1.5 font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-colors disabled:opacity-50 " +
+                    "px-3 py-1.5 text-sm font-bold rounded-lg border transition-colors disabled:opacity-50 " +
                     (isEnabled
-                      ? "bg-red-500 text-white border-red-600 hover:bg-red-600"
-                      : "bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200")
+                      ? "bg-red-500 text-white border-red-500 hover:bg-red-600"
+                      : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50")
                   }
                 >
-                  <span
-                    className={
-                      "inline-block w-1.5 h-1.5 rounded-full " +
-                      (isEnabled ? "bg-white" : "bg-gray-400")
-                    }
-                  />
                   {binIndexToLabel(binIndex)}
                 </button>
               );
             })
           ) : (
-            <span className="text-amber-700 text-sm">
+            <span className="text-gray-400 text-sm">
               記録が集まると候補が表示されます
             </span>
           )}

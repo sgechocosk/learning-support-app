@@ -65,6 +65,15 @@ export const requestBadgeNotificationPermission = async (): Promise<void> => {
 };
 
 /**
+ * 手動でPWAバッジを消去するための関数（ログアウト時などに呼び出す想定）
+ */
+export const clearAppBadge = async (): Promise<void> => {
+  const nav = getBadgeNavigator();
+  if (!nav) return;
+  await nav.clearAppBadge().catch(() => {});
+};
+
+/**
  * PWA アイコンにバッジ（未読件数のような数字）を表示するためのフック。
  *
  * - count に正の整数を渡すとその数がアプリアイコンに表示される。
@@ -109,13 +118,5 @@ export const useAppBadge = (count: number | null | undefined) => {
     }
   }, [count]);
 
-  // タブを閉じる/コンポーネントが完全にアンマウントされる時にバッジを消す。
-  useEffect(() => {
-    return () => {
-      const nav = getBadgeNavigator();
-      if (!nav) return;
-      nav.clearAppBadge().catch(() => {});
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // ▼ ここにあったアンマウント時の clearAppBadge 処理を削除しました
 };

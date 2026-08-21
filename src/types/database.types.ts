@@ -84,6 +84,73 @@ export type Database = {
           },
         ];
       };
+      learning_notification_stats: {
+        Row: {
+          pair_id: string;
+          bins: number[];
+          candidate_bins: number[];
+          computed_for_jst_date: string;
+          updated_at: string;
+        };
+        Insert: {
+          pair_id: string;
+          bins: number[];
+          candidate_bins?: number[];
+          computed_for_jst_date: string;
+          updated_at?: string;
+        };
+        Update: {
+          pair_id?: string;
+          bins?: number[];
+          candidate_bins?: number[];
+          computed_for_jst_date?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "learning_notification_stats_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: true;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      learning_notification_times: {
+        Row: {
+          pair_id: string;
+          bin_index: number;
+          is_enabled: boolean;
+          last_sent_jst_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          pair_id: string;
+          bin_index: number;
+          is_enabled?: boolean;
+          last_sent_jst_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          pair_id?: string;
+          bin_index?: number;
+          is_enabled?: boolean;
+          last_sent_jst_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "learning_notification_times_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notifications: {
         Row: {
           created_at: string;

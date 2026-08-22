@@ -50,25 +50,23 @@ self.addEventListener("push", (event) => {
       };
     }
 
-    // Declarative Web Push形式 { web_push: 8030, notification: {...} } と
-    // 旧来のフラットな形式 { title, body, ... } の両方に対応する。
     const n = payload.notification ?? payload;
-
     const title = n.title || "お知らせ";
+    const targetUrl = n.navigate || n.data?.url || n.url || "/";
+
     const options = {
       body: n.body || "",
-      // アイコンは既存の public 配下の画像に合わせて変更してください
       icon: n.icon || "/pwa-192x192.png",
       badge: n.badge || "/pwa-192x192.png",
       tag: n.tag || "task-notification",
+      navigate: targetUrl, // ← これを追加。対応ブラウザではnotificationclickをバイパスしてOS/ブラウザが直接ナビゲートする
       data: {
-        url: n.navigate || n.data?.url || n.url || "/",
+        url: targetUrl,
         notificationId: n.data?.notificationId || n.notificationId || null,
       },
     };
 
     try {
-      // ここを他の何よりも先に、一切awaitを挟まず呼ぶ。
       await self.registration.showNotification(title, options);
     } catch (err) {
       console.error("[sw] showNotification failed:", err);

@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      strategies: "injectManifest",
       manifest: {
         name: "学習支援アプリ",
         short_name: "学習支援アプリ",

@@ -9,6 +9,9 @@
 // 3. manifest.json に "display": "standalone"（または "fullscreen"）が設定されていること
 // 4. HTTPS で配信されていること（localhostは開発時のみ例外）
 
+import { precacheAndRoute } from "workbox-precaching";
+precacheAndRoute(self.__WB_MANIFEST);
+
 self.addEventListener("install", () => {
   // 新しい Service Worker をすぐに有効化する
   self.skipWaiting();

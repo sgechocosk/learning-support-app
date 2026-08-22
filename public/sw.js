@@ -55,10 +55,13 @@ self.addEventListener("push", (event) => {
     const options = {
       body: n.body || "",
       // アイコンは既存の public 配下の画像に合わせて変更してください
-      icon: n.icon || "/pwa-192x192.png",
-      badge: n.badge || "/pwa-192x192.png",
+      icon: n.icon || "/icon-192x192.png",
+      badge: n.badge || "/icon-192x192.png",
       tag: n.tag || "task-notification",
       data: {
+        // navigate（Declarative形式・絶対URL）を最優先。
+        // 無ければ data.url（相対パス。旧形式・送信側からのフォールバック）、
+        // それも無ければ従来通り "/" にフォールバックする。
         url: n.navigate || n.data?.url || n.url || "/",
         notificationId: n.data?.notificationId || n.notificationId || null,
       },
@@ -75,8 +78,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(handle());
 });
 
-// 通知をタップした時、既に開いているタブがあればそこにフォーカスし、
-// なければ新しいタブでアプリを開く
+// 通知をタップした時、既に開いているタブ/ウィンドウがあればそこへ遷移してフォーカスし、
+// なければ新しいウィンドウでアプリを開く。
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url || "/";
@@ -89,17 +92,23 @@ self.addEventListener("notificationclick", (event) => {
       });
 
       for (const client of allClients) {
-        if ("focus" in client) {
-          await client.focus();
-          if ("navigate" in client) {
-            try {
-              await client.navigate(targetUrl);
-            } catch {
-              // navigate に失敗しても focus はできているので無視
-            }
+        if (!("focus" in client)) continue;
+
+        await client.focus();
+
+        if ("navigate" in client) {
+          try {
+            await client.navigate(targetUrl);
+            return;
+          } catch (err) {
+            // navigate に失敗した場合は下の openWindow にフォールバックする
+            console.error("[sw] client.navigate failed:", err);
+            break;
           }
-          return;
         }
+
+        // navigate自体に対応していない環境ではfocusのみで妥協する
+        return;
       }
 
       await self.clients.openWindow(targetUrl);

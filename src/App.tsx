@@ -30,6 +30,7 @@ import { AiTaskInputBar } from "./components/task/AiTaskInputBar";
 import { AiTaskReviewBar } from "./components/task/AiTaskReviewBar";
 import { useProfile } from "./hooks/useProfile";
 import { usePushSubscription } from "./hooks/usePushSubscription";
+import { TABS } from "./constants/tabs";
 
 // タスクタブ表示中の支援者にのみ、AIへの指示入力欄とレビュー用バーを表示する。
 // TabContent(スライドアニメーションでtransformが付与される)の外側・
@@ -96,12 +97,24 @@ function AuthenticatedGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// push通知の navigate 先(例: "/?tab=timer")で開かれた場合に、
+// URLの ?tab=<TABSのid> を見て起動時のタブを決定する。
+// 該当する id が無い/クエリが無い場合は、従来通り前回選択していたタブ
+// (sessionStorageのactive_tab)を使う。
+function resolveInitialTab(): number {
+  const tabId = new URLSearchParams(window.location.search).get("tab");
+  if (tabId) {
+    const index = TABS.findIndex((t) => t.id === tabId);
+    if (index !== -1) return index;
+  }
+  return Number(sessionStorage.getItem("active_tab") || 0);
+}
+
 export default function App() {
   const { isAuthenticated, setIsAuthenticated, lastSignInAt } = useAuth();
   const triggerHaptic = useHaptic();
 
-  const initialTab = Number(sessionStorage.getItem("active_tab") || 0);
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(resolveInitialTab);
 
   const [slideDirection, setSlideDirection] = useState("none");
   const [isMoving, setIsMoving] = useState(false);
@@ -146,6 +159,24 @@ export default function App() {
         scrollPositions.current[activeTab] || 0;
     }
   }, [activeTab]);
+
+  // 通知タップ経由で ?tab=<id> 付きで開かれた場合、
+  // 初回反映(resolveInitialTabでのactiveTab決定)が終わったら
+  // sessionStorageに同期しつつURLからは消しておく。
+  // 消しておかないと、リロードやブラウザの「戻る」操作のたびに
+  // 毎回同じタブへ強制的に戻され続けてしまう。
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("tab")) {
+      sessionStorage.setItem("active_tab", String(activeTab));
+      params.delete("tab");
+      const url = new URL(window.location.href);
+      url.search = params.toString();
+      window.history.replaceState({}, "", url.toString());
+    }
+    // 初回マウント時のみ判定すればよい
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openOverlay = (e: React.MouseEvent, type: OverlayType) => {
     triggerHaptic();

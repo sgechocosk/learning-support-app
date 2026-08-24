@@ -25,6 +25,8 @@ import { RewardProvider } from "./contexts/RewardContext";
 import { TimerSettingsProvider } from "./contexts/TimerSettingsContext";
 import { PointEventsProvider } from "./contexts/PointEventsContext";
 import { AiTaskAgentProvider } from "./contexts/AiTaskAgentContext";
+import { TimerSessionProvider } from "./contexts/TimerSessionContext";
+import { LearnerBadgeSync } from "./components/timer/LearnerBadgeSync";
 import { useAiTaskAgentContext } from "./contexts/AiTaskAgentContext";
 import { AiTaskInputBar } from "./components/task/AiTaskInputBar";
 import { AiTaskReviewBar } from "./components/task/AiTaskReviewBar";
@@ -235,10 +237,11 @@ export default function App() {
           <PointEventsProvider>
             <RewardProvider>
               <TimerSettingsProvider>
-                <AuthenticatedGate>
-                  <AiTaskAgentProvider>
-                    <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
-                      <style>{`
+                <TimerSessionProvider>
+                  <AuthenticatedGate>
+                    <AiTaskAgentProvider>
+                      <div className="fixed inset-0 flex flex-col bg-gray-50 select-none">
+                        <style>{`
           :root {
             --click-x: ${clickPos.x}px;
             --click-y: ${clickPos.y}px;
@@ -253,49 +256,51 @@ export default function App() {
           .animate-slide-up-out { animation: slide-up-out 0.4s cubic-bezier(0.5, 0, 0.2, 1) forwards; }
         `}</style>
 
-                      <Header onOpenOverlay={openOverlay} />
+                        <Header onOpenOverlay={openOverlay} />
 
-                      <div className="flex-1 overflow-hidden relative bg-gray-50">
-                        <TabContent
-                          ref={scrollContainerRef}
-                          activeTab={activeTab}
-                          slideDirection={slideDirection}
-                        >
-                          {activeTab === 0 && <Home />}
-                          {activeTab === 1 && <Calendar />}
-                          {activeTab === 2 && <Task />}
-                          {activeTab === 3 && <Timer />}
-                          {activeTab === 4 && <Reward />}
-                        </TabContent>
+                        <div className="flex-1 overflow-hidden relative bg-gray-50">
+                          <TabContent
+                            ref={scrollContainerRef}
+                            activeTab={activeTab}
+                            slideDirection={slideDirection}
+                          >
+                            {activeTab === 0 && <Home />}
+                            {activeTab === 1 && <Calendar />}
+                            {activeTab === 2 && <Task />}
+                            {activeTab === 3 && <Timer />}
+                            {activeTab === 4 && <Reward />}
+                          </TabContent>
 
-                        {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
+                          {/* モーダルの描画先。ヘッダー/フッターを含まないこの領域だけに
                     オーバーレイを表示するためのポータルルート。
                     中身が無い時はクリックを透過させ、下のコンテンツを操作可能にする。 */}
-                        <div
-                          id="modal-portal-root"
-                          className="absolute inset-0 pointer-events-none z-30"
+                          <div
+                            id="modal-portal-root"
+                            className="absolute inset-0 pointer-events-none z-30"
+                          />
+                        </div>
+
+                        <LearnerBadgeSync />
+                        {/* TabContent(transformが付与される)の外側に置くことで、
+                      画面下端への固定位置が常に正しく保たれ、タブ切り替えでも状態が消えない */}
+                        <SupporterAiTaskDock activeTab={activeTab} />
+
+                        <Footer
+                          activeTab={activeTab}
+                          isMoving={isMoving}
+                          onTabChange={handleTabChange}
+                        />
+
+                        <Overlay
+                          type={overlayType}
+                          isClosing={isOverlayClosing}
+                          lastSignInAt={lastSignInAt}
+                          onClose={closeOverlay}
                         />
                       </div>
-
-                      {/* TabContent(transformが付与される)の外側に置くことで、
-                      画面下端への固定位置が常に正しく保たれ、タブ切り替えでも状態が消えない */}
-                      <SupporterAiTaskDock activeTab={activeTab} />
-
-                      <Footer
-                        activeTab={activeTab}
-                        isMoving={isMoving}
-                        onTabChange={handleTabChange}
-                      />
-
-                      <Overlay
-                        type={overlayType}
-                        isClosing={isOverlayClosing}
-                        lastSignInAt={lastSignInAt}
-                        onClose={closeOverlay}
-                      />
-                    </div>
-                  </AiTaskAgentProvider>
-                </AuthenticatedGate>
+                    </AiTaskAgentProvider>
+                  </AuthenticatedGate>
+                </TimerSessionProvider>
               </TimerSettingsProvider>
             </RewardProvider>
           </PointEventsProvider>

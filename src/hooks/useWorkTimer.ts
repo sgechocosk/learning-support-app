@@ -2,94 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "./useProfile";
 import { useTimerSettings } from "./useTimerSettings";
-import { useAppBadge } from "./useAppBadge";
+import {
+  useTimerSession,
+  toServerState,
+  type TimerSessionRpcRow,
+} from "../contexts/TimerSessionContext";
+// useAppBadge はここでは呼ばない。呼び出し元は LearnerBadgeSync に一本化する
+// (Timer.tsx がアンマウントされた瞬間に、常時表示用のバッジまで
+// 誤って clearAppBadge() されてしまうのを防ぐため)。
 
 export const MIN_INTERVAL_MINUTES = 1;
 export const MAX_INTERVAL_MINUTES = 10;
-
-// localStorage は「表示を即座に復元するためのキャッシュ」に過ぎない。
-// 実際に付与されるいちごの数はすべてサーバー（timer_sessionsテーブルと
-// SECURITY DEFINER の RPC群）が計算する値のみを信頼する。
-// タブ/デバイスをまたいだ多重付与を防ぐための対策の詳細は
-// supabase/migrations/20260730120000_fix_timer_duplicate_reward.sql を参照。
-const DISPLAY_CACHE_KEY = "app_timer_session_display_cache_v3";
-
-interface DisplayCache {
-  accumulatedMs: number;
-  awardedCount: number;
-}
-
-const loadDisplayCache = (): DisplayCache | null => {
-  try {
-    const raw = localStorage.getItem(DISPLAY_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<DisplayCache>;
-    if (
-      typeof parsed.accumulatedMs !== "number" ||
-      parsed.accumulatedMs < 0 ||
-      typeof parsed.awardedCount !== "number" ||
-      parsed.awardedCount < 0
-    ) {
-      return null;
-    }
-    return {
-      accumulatedMs: parsed.accumulatedMs,
-      awardedCount: parsed.awardedCount,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const saveDisplayCache = (cache: DisplayCache) => {
-  try {
-    localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify(cache));
-  } catch {}
-};
-
-interface ServerTimerState {
-  isRunning: boolean;
-  // サーバー時計を基準にした開始時刻（エポックms）。stop中はnull。
-  startedAtMs: number | null;
-  accumulatedMs: number;
-  awardedCount: number;
-  intervalMinutes: number;
-  // サーバー時刻とこの端末の時計のズレ（サーバー時刻 - 端末時刻）。
-  // 端末の時計が狂っていても、経過時間の表示・判定はサーバー基準に揃える。
-  clockOffsetMs: number;
-}
-
-const EMPTY_STATE: ServerTimerState = {
-  isRunning: false,
-  startedAtMs: null,
-  accumulatedMs: 0,
-  awardedCount: 0,
-  intervalMinutes: 5,
-  clockOffsetMs: 0,
-};
-
-interface TimerSessionRpcRow {
-  is_running: boolean;
-  started_at: string | null;
-  accumulated_ms: number;
-  awarded_count: number;
-  interval_minutes: number;
-  elapsed_ms: number;
-  strawberry_count: number;
-  server_now: string;
-}
-
-const toServerState = (row: TimerSessionRpcRow): ServerTimerState => {
-  const serverNowMs = new Date(row.server_now).getTime();
-  return {
-    isRunning: row.is_running,
-    startedAtMs: row.started_at ? new Date(row.started_at).getTime() : null,
-    accumulatedMs: row.accumulated_ms,
-    awardedCount: row.awarded_count,
-    intervalMinutes: row.interval_minutes,
-    clockOffsetMs: serverNowMs - Date.now(),
-  };
-};
 
 interface PointsRpcRow {
   awarded_delta: number;
@@ -104,26 +27,18 @@ export const useWorkTimer = () => {
   const { profile, updateProfileState } = useProfile();
   const { settings, notifyTimerActive } = useTimerSettings();
 
+  // サーバー状態の取得・realtime購読・経過時間/いちご数の計算は
+  // TimerSessionProvider(App.tsx直下、タブ開閉と無関係に常時マウント)側で
+  // 一元管理される。useWorkTimer はそれを消費するだけ。
+  const { serverState, setServerState, isLoaded, elapsedMs, strawberryCount } =
+    useTimerSession();
+
   const continueInBackground = settings?.continue_in_background ?? false;
   const pointsTiming = settings?.points_timing ?? "realtime";
 
   // 学習者本人のみタイマーを操作できる（サーバー側のRPCでも role を検証している）。
   const learnerId = profile?.role === "learner" ? profile.id : null;
 
-  const [serverState, setServerState] = useState<ServerTimerState>(() => {
-    const cached = loadDisplayCache();
-    if (!cached) return EMPTY_STATE;
-    // キャッシュはあくまで表示の初期値。isRunning は必ず false から始め、
-    // サーバーから実際の状態が届き次第それで上書きする
-    // （動作中かどうかを端末のローカル状態だけで判断しない）。
-    return {
-      ...EMPTY_STATE,
-      accumulatedMs: cached.accumulatedMs,
-      awardedCount: cached.awardedCount,
-    };
-  });
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [nowTick, setNowTick] = useState(() => Date.now());
   const [isSyncingPoints, setIsSyncingPoints] = useState(false);
 
   const latest = useRef({ serverState, continueInBackground });
@@ -131,107 +46,19 @@ export const useWorkTimer = () => {
 
   const isSyncingRef = useRef(false);
 
-  // 起動時にサーバー権威の状態を取得する。
-  // 他のタブ/デバイスで既にタイマーが動いていれば、その状態がそのまま返る。
-  useEffect(() => {
-    if (!learnerId) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase.rpc("get_timer_session_state");
-      if (!cancelled && !error && data && data[0]) {
-        setServerState(toServerState(data[0] as TimerSessionRpcRow));
-      }
-      if (!cancelled) setIsLoaded(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [learnerId]);
-
-  // 他のタブ/他のデバイスでの開始・停止・付与をリアルタイムに反映する。
-  // これにより「別タブで既に動いている」ことにこのタブも気づき、
-  // 独立した別セッションを作らず同じ状態に追従できる。
-  useEffect(() => {
-    if (!learnerId) return;
-
-    const channel = supabase
-      .channel(`timer-session-${learnerId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "timer_sessions",
-          filter: `learner_id=eq.${learnerId}`,
-        },
-        (payload) => {
-          const row = payload.new as {
-            started_at: string | null;
-            accumulated_ms: number;
-            awarded_count: number;
-          } | null;
-          if (!row) return;
-          setServerState((prev) => ({
-            ...prev,
-            isRunning: row.started_at !== null,
-            startedAtMs: row.started_at
-              ? new Date(row.started_at).getTime()
-              : null,
-            accumulatedMs: row.accumulated_ms,
-            awardedCount: row.awarded_count,
-          }));
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [learnerId]);
-
-  useEffect(() => {
-    if (!serverState.isRunning) return;
-    const id = setInterval(() => setNowTick(Date.now()), 500);
-    return () => clearInterval(id);
-  }, [serverState.isRunning]);
-
   // タイマー動作中は支援者側の設定変更をすぐに反映させない
   // （TimerSettingsContext 側の既存の挙動を維持する）。
   useEffect(() => {
     notifyTimerActive(serverState.isRunning);
   }, [serverState.isRunning, notifyTimerActive]);
 
-  useEffect(() => {
-    saveDisplayCache({
-      accumulatedMs: serverState.accumulatedMs,
-      awardedCount: serverState.awardedCount,
-    });
-  }, [serverState.accumulatedMs, serverState.awardedCount]);
-
-  const elapsedMs =
-    serverState.accumulatedMs +
-    (serverState.isRunning && serverState.startedAtMs !== null
-      ? Math.max(
-          0,
-          nowTick + serverState.clockOffsetMs - serverState.startedAtMs,
-        )
-      : 0);
-
   const intervalMs = Math.max(serverState.intervalMinutes, 1) * 60 * 1000;
-  // 画面表示用の即時計算。実際に付与されるいちご数は必ずサーバー
-  // (sync_timer_points / complete_timer_session の戻り値)を正とする。
-  const strawberryCount = Math.floor(elapsedMs / intervalMs);
   const awardedCount = serverState.awardedCount;
   const pendingPoints = Math.max(0, strawberryCount - awardedCount);
   const msUntilNextStrawberry = Math.max(
     0,
     (strawberryCount + 1) * intervalMs - elapsedMs,
   );
-
-  // タイマー作動中に貯まったいちごの個数を PWA アイコンの未読件数バッジとして表示する。
-  // 停止中（isRunning === false）はバッジを消す。
-  // Badging API 未対応のブラウザでは useAppBadge 内で何もしないため安全に呼び出せる。
-  useAppBadge(serverState.isRunning ? strawberryCount : 0);
 
   /**
    * サーバーに「未付与分のいちごを付与して」と伝える。
@@ -272,7 +99,7 @@ export const useWorkTimer = () => {
       isSyncingRef.current = false;
       setIsSyncingPoints(false);
     }
-  }, [pointsTiming, learnerId, profile, updateProfileState]);
+  }, [pointsTiming, learnerId, profile, updateProfileState, setServerState]);
 
   // 画面上のいちごの数が増えた「その瞬間」に同期を試みる
   useEffect(() => {
@@ -326,7 +153,7 @@ export const useWorkTimer = () => {
     if (data && data[0]) {
       setServerState(toServerState(data[0] as TimerSessionRpcRow));
     }
-  }, [learnerId]);
+  }, [learnerId, setServerState]);
 
   const stop = useCallback(async () => {
     if (!learnerId) return;
@@ -352,7 +179,7 @@ export const useWorkTimer = () => {
     if (data && data[0]) {
       setServerState(toServerState(data[0] as TimerSessionRpcRow));
     }
-  }, [learnerId]);
+  }, [learnerId, setServerState]);
 
   /**
    * 学習者が完了ボタン（確認モーダルの「完了する」）を押した瞬間に呼ばれる。
@@ -396,7 +223,7 @@ export const useWorkTimer = () => {
     } finally {
       setIsSyncingPoints(false);
     }
-  }, [learnerId, profile, updateProfileState]);
+  }, [learnerId, profile, updateProfileState, setServerState]);
 
   useEffect(() => {
     const handleHide = () => {

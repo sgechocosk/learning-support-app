@@ -211,16 +211,11 @@ export const RewardForm = ({
             className="text-amber-400 shrink-0"
             size={20}
           />
-          <input
-            type="number"
-            min={0}
+          <NumberStepper
             value={requiredPoints}
-            onChange={(e) => {
-              const val = e.target.value;
-              setRequiredPoints(val === "" ? "" : Number(val));
-            }}
-            placeholder="必要いちご"
-            className="w-24 border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            onChange={setRequiredPoints}
+            min={0}
+            accentClassName="border-amber-200 focus:ring-amber-300 hover:bg-amber-50 text-amber-600"
           />
           <span className="text-sm font-bold text-amber-600">コ</span>
         </div>

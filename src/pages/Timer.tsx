@@ -448,15 +448,12 @@ function LearnerTimerPanel() {
 
         {pointsTiming === "on_finish" && pendingPoints > 0 && (
           <div className="bg-amber-50 rounded-xl p-4 mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-gray-500">
-                  受け取るいちご
-                </p>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  最大 {pendingPoints} 個まで選べます
-                </p>
-              </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-xs font-semibold text-gray-500">
+                受け取るいちご
+              </p>
+            </div>
+            <div className="mt-2">
               <NumberStepper
                 value={selectedAward}
                 onChange={(v) => {
@@ -473,7 +470,7 @@ function LearnerTimerPanel() {
             {selectedAward < pendingPoints && (
               <p className="text-[11px] text-amber-600 mt-2">
                 残り {pendingPoints - selectedAward}{" "}
-                個は受け取らずに破棄されます
+                個は受け取らずに無くなります
               </p>
             )}
           </div>

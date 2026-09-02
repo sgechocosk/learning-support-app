@@ -241,6 +241,11 @@ function LearnerTimerPanel() {
   );
   const [isDraining, setIsDraining] = useState(false);
 
+  // 「タイマー終了後」設定の場合、放置などで貯まった未確定分(pendingPoints)を
+  // 学習者が完了モーダルで確認しながら 0〜pendingPoints の範囲で選べるようにする。
+  // realtimeモードは都度確定済みのため対象外(常に満額=undefinedをサーバーに渡す)。
+  const [selectedAward, setSelectedAward] = useState(0);
+
   // タイマー動作中は画面の自動スリープを防止する（動画再生中と同様の挙動）
   useWakeLock(isRunning);
 
@@ -270,6 +275,8 @@ function LearnerTimerPanel() {
     wasRunningBeforeCompleteRef.current = isRunning;
     if (isRunning) stop();
     setCompleteError(false);
+    // 初期値は「今まで通り満額を受け取る」。学習者が任意で減らせるようにする。
+    setSelectedAward(pendingPoints);
     setShowComplete(true);
   };
 
@@ -294,7 +301,11 @@ function LearnerTimerPanel() {
       setFlaskOverrideCount(preCount);
     }
 
-    const ok = await completeSession();
+    // realtimeモードは選択UIを出さないため常に満額(undefined=サーバー側で満額)。
+    // on_finishモードのみ、学習者がモーダルで選んだ数を渡す。
+    const ok = await completeSession(
+      pointsTiming === "on_finish" ? selectedAward : undefined,
+    );
     if (!ok) {
       setFlaskOverrideCount(null);
       setCompleteError(true);
@@ -433,13 +444,40 @@ function LearnerTimerPanel() {
               🍓 {strawberryCount} 個
             </span>
           </div>
-          {pointsTiming === "on_finish" && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">付与いちご</span>
-              <span className="font-bold text-amber-500">+{pendingPoints}</span>
-            </div>
-          )}
         </div>
+
+        {pointsTiming === "on_finish" && pendingPoints > 0 && (
+          <div className="bg-amber-50 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-gray-500">
+                  受け取るいちご
+                </p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  最大 {pendingPoints} 個まで選べます
+                </p>
+              </div>
+              <NumberStepper
+                value={selectedAward}
+                onChange={(v) => {
+                  if (v === "") return;
+                  triggerHaptic();
+                  setSelectedAward(v);
+                }}
+                min={0}
+                max={pendingPoints}
+                disabled={isSyncingPoints}
+                accentClassName="border-amber-200 focus:ring-amber-300 hover:bg-amber-100 text-amber-600"
+              />
+            </div>
+            {selectedAward < pendingPoints && (
+              <p className="text-[11px] text-amber-600 mt-2">
+                残り {pendingPoints - selectedAward}{" "}
+                個は受け取らずに破棄されます
+              </p>
+            )}
+          </div>
+        )}
 
         {completeError && (
           <p className="text-[11px] text-rose-500 mb-3 -mt-2">

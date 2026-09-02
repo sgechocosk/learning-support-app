@@ -46,64 +46,26 @@ export type Database = {
           },
         ];
       };
-      pair_invitations: {
-        Row: {
-          created_at: string;
-          expires_at: string;
-          id: string;
-          invitee_email: string;
-          status: string;
-          supporter_id: string;
-          token: string;
-        };
-        Insert: {
-          created_at?: string;
-          expires_at?: string;
-          id?: string;
-          invitee_email: string;
-          status?: string;
-          supporter_id: string;
-          token?: string;
-        };
-        Update: {
-          created_at?: string;
-          expires_at?: string;
-          id?: string;
-          invitee_email?: string;
-          status?: string;
-          supporter_id?: string;
-          token?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "pair_invitations_supporter_id_fkey";
-            columns: ["supporter_id"];
-            isOneToOne: true;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       learning_notification_stats: {
         Row: {
-          pair_id: string;
           bins: number[];
           candidate_bins: number[];
           computed_for_jst_date: string;
+          pair_id: string;
           updated_at: string;
         };
         Insert: {
-          pair_id: string;
           bins: number[];
           candidate_bins?: number[];
           computed_for_jst_date: string;
+          pair_id: string;
           updated_at?: string;
         };
         Update: {
-          pair_id?: string;
           bins?: number[];
           candidate_bins?: number[];
           computed_for_jst_date?: string;
+          pair_id?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -118,27 +80,27 @@ export type Database = {
       };
       learning_notification_times: {
         Row: {
-          pair_id: string;
           bin_index: number;
+          created_at: string;
           is_enabled: boolean;
           last_sent_jst_date: string | null;
-          created_at: string;
+          pair_id: string;
           updated_at: string;
         };
         Insert: {
-          pair_id: string;
           bin_index: number;
+          created_at?: string;
           is_enabled?: boolean;
           last_sent_jst_date?: string | null;
-          created_at?: string;
+          pair_id: string;
           updated_at?: string;
         };
         Update: {
-          pair_id?: string;
           bin_index?: number;
+          created_at?: string;
           is_enabled?: boolean;
           last_sent_jst_date?: string | null;
-          created_at?: string;
+          pair_id?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -199,49 +161,39 @@ export type Database = {
           },
         ];
       };
-      push_subscriptions: {
+      pair_invitations: {
         Row: {
-          auth_key: string;
           created_at: string;
-          endpoint: string;
+          expires_at: string;
           id: string;
-          p256dh: string;
-          pair_id: string;
-          user_agent: string | null;
-          user_id: string;
+          invitee_email: string;
+          status: string;
+          supporter_id: string;
+          token: string;
         };
         Insert: {
-          auth_key: string;
           created_at?: string;
-          endpoint: string;
+          expires_at?: string;
           id?: string;
-          p256dh: string;
-          pair_id: string;
-          user_agent?: string | null;
-          user_id: string;
+          invitee_email: string;
+          status?: string;
+          supporter_id: string;
+          token?: string;
         };
         Update: {
-          auth_key?: string;
           created_at?: string;
-          endpoint?: string;
+          expires_at?: string;
           id?: string;
-          p256dh?: string;
-          pair_id?: string;
-          user_agent?: string | null;
-          user_id?: string;
+          invitee_email?: string;
+          status?: string;
+          supporter_id?: string;
+          token?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "push_subscriptions_pair_id_fkey";
-            columns: ["pair_id"];
-            isOneToOne: false;
-            referencedRelation: "pairs";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "push_subscriptions_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
+            foreignKeyName: "pair_invitations_supporter_id_fkey";
+            columns: ["supporter_id"];
+            isOneToOne: true;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
@@ -286,6 +238,61 @@ export type Database = {
           },
         ];
       };
+      point_events: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: string;
+          jst_date: string;
+          learner_id: string;
+          pair_id: string;
+          source: string;
+          task_id: string | null;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: string;
+          jst_date: string;
+          learner_id: string;
+          pair_id: string;
+          source: string;
+          task_id?: string | null;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: string;
+          jst_date?: string;
+          learner_id?: string;
+          pair_id?: string;
+          source?: string;
+          task_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "point_events_learner_id_fkey";
+            columns: ["learner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_events_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_events_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           created_at: string | null;
@@ -316,57 +323,50 @@ export type Database = {
         };
         Relationships: [];
       };
-      point_events: {
+      push_subscriptions: {
         Row: {
-          id: string;
-          pair_id: string;
-          learner_id: string;
-          source: string;
-          task_id: string | null;
-          amount: number;
+          auth_key: string;
           created_at: string;
-          jst_date: string;
+          endpoint: string;
+          id: string;
+          p256dh: string;
+          pair_id: string;
+          user_agent: string | null;
+          user_id: string;
         };
         Insert: {
-          id?: string;
-          pair_id: string;
-          learner_id: string;
-          source: string;
-          task_id?: string | null;
-          amount: number;
+          auth_key: string;
           created_at?: string;
-          jst_date?: string;
+          endpoint: string;
+          id?: string;
+          p256dh: string;
+          pair_id: string;
+          user_agent?: string | null;
+          user_id: string;
         };
         Update: {
-          id?: string;
-          pair_id?: string;
-          learner_id?: string;
-          source?: string;
-          task_id?: string | null;
-          amount?: number;
+          auth_key?: string;
           created_at?: string;
-          jst_date?: string;
+          endpoint?: string;
+          id?: string;
+          p256dh?: string;
+          pair_id?: string;
+          user_agent?: string | null;
+          user_id?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "point_events_pair_id_fkey";
+            foreignKeyName: "push_subscriptions_pair_id_fkey";
             columns: ["pair_id"];
             isOneToOne: false;
             referencedRelation: "pairs";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "point_events_learner_id_fkey";
-            columns: ["learner_id"];
+            foreignKeyName: "push_subscriptions_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "point_events_task_id_fkey";
-            columns: ["task_id"];
-            isOneToOne: false;
-            referencedRelation: "tasks";
             referencedColumns: ["id"];
           },
         ];
@@ -530,6 +530,48 @@ export type Database = {
           },
         ];
       };
+      timer_sessions: {
+        Row: {
+          accumulated_ms: number;
+          awarded_count: number;
+          learner_id: string;
+          pair_id: string;
+          started_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          accumulated_ms?: number;
+          awarded_count?: number;
+          learner_id: string;
+          pair_id: string;
+          started_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          accumulated_ms?: number;
+          awarded_count?: number;
+          learner_id?: string;
+          pair_id?: string;
+          started_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "timer_sessions_learner_id_fkey";
+            columns: ["learner_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timer_sessions_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "pairs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       timer_settings: {
         Row: {
           continue_in_background: boolean;
@@ -562,140 +604,48 @@ export type Database = {
           },
         ];
       };
-      timer_sessions: {
-        Row: {
-          learner_id: string;
-          pair_id: string;
-          started_at: string | null;
-          accumulated_ms: number;
-          awarded_count: number;
-          updated_at: string;
-        };
-        Insert: {
-          learner_id: string;
-          pair_id: string;
-          started_at?: string | null;
-          accumulated_ms?: number;
-          awarded_count?: number;
-          updated_at?: string;
-        };
-        Update: {
-          learner_id?: string;
-          pair_id?: string;
-          started_at?: string | null;
-          accumulated_ms?: number;
-          awarded_count?: number;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "timer_sessions_learner_id_fkey";
-            columns: ["learner_id"];
-            isOneToOne: true;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "timer_sessions_pair_id_fkey";
-            columns: ["pair_id"];
-            isOneToOne: false;
-            referencedRelation: "pairs";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      // 学習者本人のサーバー権威タイマー状態（実行中かどうか・経過時間・
-      // 付与済みいちご数）を取得する。付与処理は行わない読み取り専用API。
-      get_timer_session_state: {
-        Args: Record<PropertyKey, never>;
+      _timer_compute_state: {
+        Args: {
+          p_accumulated_ms: number;
+          p_interval_minutes: number;
+          p_started_at: string;
+        };
         Returns: {
-          is_running: boolean;
-          started_at: string | null;
-          accumulated_ms: number;
-          awarded_count: number;
-          interval_minutes: number;
           elapsed_ms: number;
           strawberry_count: number;
-          server_now: string;
         }[];
       };
-      // タイマー開始。既に(他タブ/他デバイスで)実行中のセッションがあれば、
-      // 新規セッションは作らずその既存セッションにそのまま乗る。
-      start_timer_session: {
-        Args: Record<PropertyKey, never>;
-        Returns: {
-          is_running: boolean;
-          started_at: string | null;
-          accumulated_ms: number;
-          awarded_count: number;
-          interval_minutes: number;
-          elapsed_ms: number;
-          strawberry_count: number;
-          server_now: string;
-        }[];
-      };
-      // タイマー停止（経過時間を確定させる）。
-      stop_timer_session: {
-        Args: Record<PropertyKey, never>;
-        Returns: {
-          is_running: boolean;
-          started_at: string | null;
-          accumulated_ms: number;
-          awarded_count: number;
-          interval_minutes: number;
-          elapsed_ms: number;
-          strawberry_count: number;
-          server_now: string;
-        }[];
-      };
-      // 未付与分のいちごをサーバー計算で確定付与する。
-      // クライアントは付与量を渡さない（渡せない）ため、複数タブ/デバイスから
-      // 同時に呼ばれても二重付与されない（行ロックにより直列化される）。
-      sync_timer_points: {
-        Args: Record<PropertyKey, never>;
-        Returns: {
-          awarded_delta: number;
-          awarded_count: number;
-          strawberry_count: number;
-          elapsed_ms: number;
-          points: number;
-          total_points: number;
-        }[];
-      };
-      // 未付与分を確定付与した上で、セッションをアトミックに0へリセットする。
-      complete_timer_session: {
-        Args: Record<PropertyKey, never>;
-        Returns: {
-          awarded_delta: number;
-          awarded_count: number;
-          strawberry_count: number;
-          elapsed_ms: number;
-          points: number;
-          total_points: number;
-        }[];
-      };
-      // 【原因②対応】endpointの所有者に関わらずreassignできるSECURITY DEFINER関数。
-      // 呼び出し元(auth.uid())がp_pair_idの学習者/支援者本人であることを
-      // 関数内で検証したうえで push_subscriptions を upsert する。
-      // supabase/migrations/20260815000000_claim_push_subscription.sql 参照。
+      _timer_learner_pair_id: { Args: never; Returns: string };
       claim_push_subscription: {
         Args: {
+          p_auth_key: string;
           p_endpoint: string;
           p_p256dh: string;
-          p_auth_key: string;
           p_pair_id: string;
-          p_user_agent?: string | null;
+          p_user_agent?: string;
         };
         Returns: undefined;
       };
-      get_current_streak: { Args: { p_pair_id: string }; Returns: number };
       claim_task_points: { Args: { task_id: string }; Returns: undefined };
       complete_task: { Args: { task_id: string }; Returns: undefined };
+      complete_timer_session: {
+        Args: { p_award_count?: number };
+        Returns: {
+          awarded_count: number;
+          awarded_delta: number;
+          discarded_count: number;
+          elapsed_ms: number;
+          points: number;
+          strawberry_count: number;
+          total_points: number;
+        }[];
+      };
+      get_current_streak: { Args: { p_pair_id: string }; Returns: number };
       get_invitation_by_token: {
         Args: { p_token: string };
         Returns: {
@@ -706,14 +656,65 @@ export type Database = {
           supporter_name: string;
         }[];
       };
+      get_timer_session_state: {
+        Args: never;
+        Returns: Database["public"]["CompositeTypes"]["timer_session_state"][];
+        SetofOptions: {
+          from: "*";
+          to: "timer_session_state";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       redeem_reward: { Args: { reward_id: string }; Returns: undefined };
+      reset_daily_tasks: { Args: never; Returns: undefined };
+      start_timer_session: {
+        Args: never;
+        Returns: Database["public"]["CompositeTypes"]["timer_session_state"][];
+        SetofOptions: {
+          from: "*";
+          to: "timer_session_state";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      stop_timer_session: {
+        Args: never;
+        Returns: Database["public"]["CompositeTypes"]["timer_session_state"][];
+        SetofOptions: {
+          from: "*";
+          to: "timer_session_state";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      sync_timer_points: {
+        Args: never;
+        Returns: {
+          awarded_count: number;
+          awarded_delta: number;
+          elapsed_ms: number;
+          points: number;
+          strawberry_count: number;
+          total_points: number;
+        }[];
+      };
       uncomplete_task: { Args: { task_id: string }; Returns: undefined };
     };
     Enums: {
       [_ in never]: never;
     };
     CompositeTypes: {
-      [_ in never]: never;
+      timer_session_state: {
+        is_running: boolean | null;
+        started_at: string | null;
+        accumulated_ms: number | null;
+        awarded_count: number | null;
+        interval_minutes: number | null;
+        elapsed_ms: number | null;
+        strawberry_count: number | null;
+        server_now: string | null;
+      };
     };
   };
 };

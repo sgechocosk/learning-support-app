@@ -23,6 +23,12 @@ interface PointsRpcRow {
   total_points: number;
 }
 
+interface CompleteSessionRpcRow extends PointsRpcRow {
+  // 学習者が選ばなかった(受け取らないことにした)いちごの数。
+  // complete_timer_session の DB 側でクランプ済みの確定値。
+  discarded_count: number;
+}
+
 export const useWorkTimer = () => {
   const { profile, updateProfileState } = useProfile();
   const { settings, notifyTimerActive } = useTimerSettings();
@@ -183,47 +189,59 @@ export const useWorkTimer = () => {
 
   /**
    * 学習者が完了ボタン（確認モーダルの「完了する」）を押した瞬間に呼ばれる。
-   * サーバー側で「未付与分の確定付与」と「セッションを0へリセット」を
+   * サーバー側で「選んだ分だけの確定付与」と「セッションを0へリセット」を
    * 同一トランザクション・同一行ロックの中でアトミックに行うため、
    * ここでも複数タブ/デバイスからの同時操作で不整合や二重付与は起きない。
    * 通信に失敗した場合はセッションをリセットせず、いちごを失わないように
    * して呼び出し元へ失敗を伝える（呼び出し元でエラー表示・再試行が可能）。
+   *
+   * @param awardCount 学習者が選んだ「受け取る」いちごの数。
+   *   省略(undefined)した場合はサーバー側で従来通り未確定分を満額付与する
+   *   （realtimeモード等、選択UIを出さないケースの後方互換用）。
+   *   渡した値がどんな数字であっても、実際に加算される量は必ずサーバー側で
+   *   「その時点で未確定だった数」を上限にクランプされる。クライアントの
+   *   自己申告をそのまま信用しているわけではない。
    */
-  const completeSession = useCallback(async (): Promise<boolean> => {
-    if (!learnerId) return false;
+  const completeSession = useCallback(
+    async (awardCount?: number): Promise<boolean> => {
+      if (!learnerId) return false;
 
-    setIsSyncingPoints(true);
-    try {
-      const { data, error } = await supabase.rpc("complete_timer_session");
-      if (error) {
-        console.warn("Error completing timer session", error);
-        return false;
-      }
-      const result = (data?.[0] ?? null) as PointsRpcRow | null;
-      if (!result) return false;
-
-      if (profile) {
-        updateProfileState({
-          points: result.points,
-          total_points: result.total_points,
+      setIsSyncingPoints(true);
+      try {
+        const { data, error } = await supabase.rpc("complete_timer_session", {
+          p_award_count: awardCount,
         });
-      }
+        if (error) {
+          console.warn("Error completing timer session", error);
+          return false;
+        }
+        const result = (data?.[0] ?? null) as CompleteSessionRpcRow | null;
+        if (!result) return false;
 
-      setServerState((prev) => ({
-        ...prev,
-        isRunning: false,
-        startedAtMs: null,
-        accumulatedMs: 0,
-        awardedCount: 0,
-      }));
-      return true;
-    } catch (e) {
-      console.warn("Error completing timer session", e);
-      return false;
-    } finally {
-      setIsSyncingPoints(false);
-    }
-  }, [learnerId, profile, updateProfileState, setServerState]);
+        if (profile) {
+          updateProfileState({
+            points: result.points,
+            total_points: result.total_points,
+          });
+        }
+
+        setServerState((prev) => ({
+          ...prev,
+          isRunning: false,
+          startedAtMs: null,
+          accumulatedMs: 0,
+          awardedCount: 0,
+        }));
+        return true;
+      } catch (e) {
+        console.warn("Error completing timer session", e);
+        return false;
+      } finally {
+        setIsSyncingPoints(false);
+      }
+    },
+    [learnerId, profile, updateProfileState, setServerState],
+  );
 
   useEffect(() => {
     const handleHide = () => {

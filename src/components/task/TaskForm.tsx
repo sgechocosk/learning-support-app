@@ -5,6 +5,7 @@ import { useCategory } from "../../hooks/useCategory";
 import type { Task } from "../../types";
 import { useHaptic } from "../../hooks/useHaptic";
 import { Modal } from "../ui/Modal";
+import { NumberStepper } from "../ui/NumberStepper";
 import { TutorialFieldHint } from "../../tutorial/TutorialFieldHint";
 import { useSupporterTutorialContext } from "../../tutorial/SupporterTutorialContext";
 
@@ -487,19 +488,15 @@ export const TaskForm = ({
             className="text-sky-400 shrink-0"
             size={20}
           />
-          <TutorialFieldHint text="タスク完了時にもらえる「いちご」の数を、頑張り度に合わせて決められます。">
-            <input
-              type="number"
-              min={0}
-              value={rewardPoints}
-              onChange={(e) => {
-                const val = e.target.value;
-                setRewardPoints(val === "" ? "" : Number(val));
-              }}
-              placeholder="獲得いちご"
-              data-tutorial-id="tutorial-points-input"
-              className="w-28 border border-sky-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
-            />
+          <TutorialFieldHint text="タスク完了時にもらえる「いちご」の数を、頑張り度に合わせて決められます。長押しで数字がすばやく変わります。">
+            <div data-tutorial-id="tutorial-points-input">
+              <NumberStepper
+                value={rewardPoints}
+                onChange={setRewardPoints}
+                min={0}
+                accentClassName="border-sky-200 focus:ring-sky-300 hover:bg-sky-50 text-sky-600"
+              />
+            </div>
           </TutorialFieldHint>
           <span className="text-sm font-bold text-sky-600">コ</span>
         </div>

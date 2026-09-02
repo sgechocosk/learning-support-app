@@ -1,4 +1,5 @@
-import { Minus, Plus } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Minus, Plus } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface NumberStepperProps {
   value: number | "";
@@ -10,8 +11,13 @@ interface NumberStepperProps {
   size?: "sm" | "md";
 }
 
+// 長押し対応: タップで1回、押しっぱなしで400ms後から120ms間隔で連続加算/減算する。
+const LONG_PRESS_DELAY_MS = 400;
+const LONG_PRESS_INTERVAL_MS = 120;
+
 // 入力欄の左右に±1ボタン、その外側に±5ボタンを配置した数値調整UI。
 // 例: [-5] [-1] [ 入力欄 ] [+1] [+5]
+// ±ボタンは長押しで連続加算/減算に対応（大きな数値をすばやく調整できる）。
 export const NumberStepper = ({
   value,
   onChange,
@@ -21,17 +27,34 @@ export const NumberStepper = ({
   accentClassName = "border-amber-200 focus:ring-amber-300 hover:bg-amber-50 text-amber-600",
   size = "md",
 }: NumberStepperProps) => {
-  const clamp = (n: number) => {
-    let v = n;
-    if (min !== undefined) v = Math.max(min, v);
-    if (max !== undefined) v = Math.min(max, v);
-    return v;
-  };
+  // 長押し中の setInterval コールバックが常に最新の値を参照できるよう ref で保持する
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
-  const step = (delta: number) => {
-    const current = value === "" ? (min ?? 0) : value;
-    onChange(clamp(current + delta));
-  };
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clamp = useCallback(
+    (n: number) => {
+      let v = n;
+      if (min !== undefined) v = Math.max(min, v);
+      if (max !== undefined) v = Math.min(max, v);
+      return v;
+    },
+    [min, max]
+  );
+
+  const step = useCallback(
+    (delta: number) => {
+      const current = valueRef.current === "" ? (min ?? 0) : valueRef.current;
+      const next = clamp(current + delta);
+      valueRef.current = next;
+      onChange(next);
+    },
+    [clamp, min, onChange]
+  );
 
   const canStep = (delta: number) => {
     if (disabled) return false;
@@ -40,10 +63,54 @@ export const NumberStepper = ({
     return next !== current || value === "";
   };
 
+  // 長押し用タイマーを確実に停止する
+  const stopPress = useCallback(() => {
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // ボタンが押された瞬間に1回分を反映し、400ms長押しが続いたら120ms間隔の連続入力を開始する
+  const startPress = useCallback(
+    (delta: number) => {
+      if (disabled) return;
+      stopPress();
+      step(delta);
+      timeoutRef.current = setTimeout(() => {
+        intervalRef.current = setInterval(() => {
+          step(delta);
+        }, LONG_PRESS_INTERVAL_MS);
+      }, LONG_PRESS_DELAY_MS);
+    },
+    [disabled, step, stopPress]
+  );
+
+  // コンポーネント破棄時にタイマーを確実にクリア
+  useEffect(() => stopPress, [stopPress]);
+
+  // マウスとタッチ両方のイベントをまとめるヘルパー関数。
+  // touch-none と組み合わせることで、スマホでの誤スクロールや長押しメニューの発生を防ぐ。
+  const pressHandlers = (delta: number) => ({
+    onMouseDown: () => startPress(delta),
+    onMouseUp: stopPress,
+    onMouseLeave: stopPress,
+    onTouchStart: (e: React.TouchEvent) => {
+      e.preventDefault();
+      startPress(delta);
+    },
+    onTouchEnd: stopPress,
+    onTouchCancel: stopPress,
+  });
+
   const btnBase =
     size === "sm"
-      ? "w-7 h-7 shrink-0 flex items-center justify-center rounded-full border text-xs font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-      : "w-9 h-9 shrink-0 flex items-center justify-center rounded-full border text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed";
+      ? "w-7 h-7 shrink-0 flex items-center justify-center rounded-full border text-xs font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed select-none touch-none"
+      : "w-9 h-9 shrink-0 flex items-center justify-center rounded-full border text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed select-none touch-none";
 
   const inputBase =
     size === "sm"
@@ -54,21 +121,18 @@ export const NumberStepper = ({
     <div className="flex items-center gap-1">
       <button
         type="button"
-        onClick={() => step(-5)}
+        {...pressHandlers(-5)}
         disabled={!canStep(-5)}
-        aria-label="5減らす"
+        aria-label="5減らす（長押しで連続減算）"
         className={`${btnBase} ${accentClassName}`}
       >
-        <span className="flex items-center">
-          <Minus size={11} />
-          <Minus size={11} className="-ml-1.5" />
-        </span>
+        <ChevronsLeft size={size === "sm" ? 16 : 18} />
       </button>
       <button
         type="button"
-        onClick={() => step(-1)}
+        {...pressHandlers(-1)}
         disabled={!canStep(-1)}
-        aria-label="1減らす"
+        aria-label="1減らす（長押しで連続減算）"
         className={`${btnBase} ${accentClassName}`}
       >
         <Minus size={size === "sm" ? 12 : 14} />
@@ -100,24 +164,21 @@ export const NumberStepper = ({
 
       <button
         type="button"
-        onClick={() => step(1)}
+        {...pressHandlers(1)}
         disabled={!canStep(1)}
-        aria-label="1増やす"
+        aria-label="1増やす（長押しで連続加算）"
         className={`${btnBase} ${accentClassName}`}
       >
         <Plus size={size === "sm" ? 12 : 14} />
       </button>
       <button
         type="button"
-        onClick={() => step(5)}
+        {...pressHandlers(5)}
         disabled={!canStep(5)}
-        aria-label="5増やす"
+        aria-label="5増やす（長押しで連続加算）"
         className={`${btnBase} ${accentClassName}`}
       >
-        <span className="flex items-center">
-          <Plus size={11} />
-          <Plus size={11} className="-ml-1.5" />
-        </span>
+        <ChevronsRight size={size === "sm" ? 16 : 18} />
       </button>
     </div>
   );

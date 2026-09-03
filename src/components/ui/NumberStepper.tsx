@@ -43,7 +43,7 @@ export const NumberStepper = ({
       if (max !== undefined) v = Math.min(max, v);
       return v;
     },
-    [min, max]
+    [min, max],
   );
 
   const step = useCallback(
@@ -53,7 +53,7 @@ export const NumberStepper = ({
       valueRef.current = next;
       onChange(next);
     },
-    [clamp, min, onChange]
+    [clamp, min, onChange],
   );
 
   const canStep = (delta: number) => {
@@ -87,20 +87,34 @@ export const NumberStepper = ({
         }, LONG_PRESS_INTERVAL_MS);
       }, LONG_PRESS_DELAY_MS);
     },
-    [disabled, step, stopPress]
+    [disabled, step, stopPress],
   );
 
   // コンポーネント破棄時にタイマーを確実にクリア
   useEffect(() => stopPress, [stopPress]);
 
+  // iOS Safariはtouchstart/touchendの後、約300ms遅れて互換用のmousedown/mouseup/click
+  // (synthetic mouse events)を発火させる。React 17以降 onTouchStart はpassiveリスナーとして
+  // 登録されるため、ここでの e.preventDefault() はこの合成イベントの発生を止められない。
+  // 何もガードしないと「タッチ本来の1回」+「後から来る合成mousedownの1回」で
+  // 1タップが2回分の加算/減算として処理されてしまう。
+  // そのため、直近にタッチ操作があった場合は、その後一定時間だけ
+  // mousedown由来のstartPressを無視する。
+  const IGNORE_MOUSE_AFTER_TOUCH_MS = 1000;
+  const ignoreMouseUntilRef = useRef(0);
+
   // マウスとタッチ両方のイベントをまとめるヘルパー関数。
   // touch-none と組み合わせることで、スマホでの誤スクロールや長押しメニューの発生を防ぐ。
   const pressHandlers = (delta: number) => ({
-    onMouseDown: () => startPress(delta),
+    onMouseDown: () => {
+      if (Date.now() < ignoreMouseUntilRef.current) return;
+      startPress(delta);
+    },
     onMouseUp: stopPress,
     onMouseLeave: stopPress,
     onTouchStart: (e: React.TouchEvent) => {
       e.preventDefault();
+      ignoreMouseUntilRef.current = Date.now() + IGNORE_MOUSE_AFTER_TOUCH_MS;
       startPress(delta);
     },
     onTouchEnd: stopPress,

@@ -31,7 +31,11 @@ interface CompleteSessionRpcRow extends PointsRpcRow {
 
 export const useWorkTimer = () => {
   const { profile, updateProfileState } = useProfile();
-  const { settings, notifyTimerActive } = useTimerSettings();
+  const {
+    settings,
+    notifyTimerActive,
+    isLoading: isSettingsLoading,
+  } = useTimerSettings();
 
   // サーバー状態の取得・realtime購読・経過時間/いちご数の計算は
   // TimerSessionProvider(App.tsx直下、タブ開閉と無関係に常時マウント)側で
@@ -40,7 +44,15 @@ export const useWorkTimer = () => {
     useTimerSession();
 
   const continueInBackground = settings?.continue_in_background ?? false;
-  const pointsTiming = settings?.points_timing ?? "realtime";
+
+  // settings がまだロードされていない（= ページ更新直後などでDBの実際の値を
+  // 取得し終えていない）間は、"realtime" というフォールバック値を絶対に
+  // 外部へ渡さない。この値が一瞬でも "realtime" として扱われると、
+  // 本来 "on_finish" 設定であっても下の同期用effectが未確定いちごを
+  // 即座に確定付与してしまうため（ページ更新時の誤付与バグの原因だった）。
+  const pointsTiming = isSettingsLoading
+    ? null
+    : (settings?.points_timing ?? "realtime");
 
   // 学習者本人のみタイマーを操作できる（サーバー側のRPCでも role を検証している）。
   const learnerId = profile?.role === "learner" ? profile.id : null;
@@ -74,6 +86,8 @@ export const useWorkTimer = () => {
    * 二重に付与されることはない。
    */
   const syncRealtimePoints = useCallback(async () => {
+    // settings 未ロード中は判定できないので何もしない
+    // (loading中に "realtime" 扱いされてしまうのを防ぐ)。
     if (pointsTiming !== "realtime") return;
     if (!learnerId) return;
     if (isSyncingRef.current) return;
@@ -109,15 +123,28 @@ export const useWorkTimer = () => {
 
   // 画面上のいちごの数が増えた「その瞬間」に同期を試みる
   useEffect(() => {
+    // settings がロードされ切るまでは、まだ本当の points_timing が
+    // "realtime" なのか "on_finish" なのか分からない。ここで
+    // pointsTiming（nullの場合を含む）を早期判定に使うと、ページ更新直後の
+    // 一瞬だけ "realtime" 扱いされて未確定いちごが即時確定してしまうため、
+    // ロード完了まで待つ。
+    if (isSettingsLoading) return;
     if (pointsTiming !== "realtime") return;
     if (strawberryCount > awardedCount) {
       syncRealtimePoints();
     }
-  }, [pointsTiming, strawberryCount, awardedCount, syncRealtimePoints]);
+  }, [
+    isSettingsLoading,
+    pointsTiming,
+    strawberryCount,
+    awardedCount,
+    syncRealtimePoints,
+  ]);
 
   // 通信失敗時の取りこぼし対策: オンライン復帰時・タブがフォアグラウンドに
   // 戻った時・一定間隔ごとに、未送信分が残っていれば再送を試みる。
   useEffect(() => {
+    if (isSettingsLoading) return;
     if (pointsTiming !== "realtime") return;
 
     const retry = () => {
@@ -133,7 +160,7 @@ export const useWorkTimer = () => {
       document.removeEventListener("visibilitychange", retry);
       clearInterval(intervalId);
     };
-  }, [pointsTiming, syncRealtimePoints]);
+  }, [isSettingsLoading, pointsTiming, syncRealtimePoints]);
 
   const start = useCallback(async () => {
     if (!learnerId) return;
@@ -269,6 +296,9 @@ export const useWorkTimer = () => {
     isLoaded,
     intervalMinutes: serverState.intervalMinutes,
     continueInBackground,
+    // pointsTiming は settings ロード中は null になる。呼び出し元
+    // (Timer.tsx等)で "on_finish" 判定をしている箇所は、意図せず
+    // "realtime" 扱いされないよう null も考慮すること。
     pointsTiming,
     isRunning: serverState.isRunning,
     elapsedMs,

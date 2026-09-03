@@ -55,9 +55,20 @@ export const TimerSettingsProvider = ({
   const isTimerActiveRef = useRef(false);
   const pendingSettingsRef = useRef<TimerSettings | null>(null);
 
-  // タイマーが動作していなければ即反映、動作中なら保留する
-  const applyIncomingSettings = (data: TimerSettings) => {
-    if (isTimerActiveRef.current) {
+  // タイマーが動作していなければ即反映、動作中なら保留する。
+  // ただし「保留」の対象はあくまで realtime 経由で届いた変更(isBackground=true)のみ。
+  // 初回ロード(isBackground=false)を保留してしまうと、
+  // ページリロード直後に「セッションがまだ稼働中」というサーバー状態が先に届いた場合
+  // (notifyTimerActive(true) が settings の初回フェッチ完了より先に発火するケース)、
+  // settings が null のまま isLoading だけ false になってしまい、
+  // pointsTiming が誤って "realtime" 扱いされて未確定のいちごが
+  // 即座に確定付与されてしまう不具合の原因になっていた。
+  // 初回ロードは常に即時反映し、以降の変更のみ稼働中は保留する。
+  const applyIncomingSettings = (
+    data: TimerSettings,
+    isBackground: boolean,
+  ) => {
+    if (isBackground && isTimerActiveRef.current) {
       pendingSettingsRef.current = data;
     } else {
       pendingSettingsRef.current = null;
@@ -89,7 +100,7 @@ export const TimerSettingsProvider = ({
       .maybeSingle();
 
     if (data && !error) {
-      applyIncomingSettings(data as TimerSettings);
+      applyIncomingSettings(data as TimerSettings, isBackground);
     } else if (!error) {
       // 行がまだ無いペアには初期値を作成しておく（どちらの立場でも作成可）
       const { data: created } = await supabase
@@ -97,7 +108,8 @@ export const TimerSettingsProvider = ({
         .insert({ pair_id: pairId, ...DEFAULT_TIMER_SETTINGS })
         .select()
         .single();
-      if (created) applyIncomingSettings(created as TimerSettings);
+      if (created)
+        applyIncomingSettings(created as TimerSettings, isBackground);
     }
     setIsLoading(false);
   };

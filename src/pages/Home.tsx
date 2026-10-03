@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { usePointEvents } from "../hooks/usePointEvents";
 import { useProfile } from "../hooks/useProfile";
+import {
+  useTimerSettings,
+  DEFAULT_TIMER_SETTINGS,
+} from "../hooks/useTimerSettings";
 import SupporterLearningStats from "../components/home/SupporterLearningStats";
 
 const MAX_STRAWBERRIES = 90;
@@ -371,14 +375,55 @@ function StrawberryTree({ count }: StrawberryTreeProps) {
 }
 
 interface WeeklyStreakBarProps {
-  events: { jst_date: string; amount: number }[];
+  events: { jst_date: string; amount: number; source: string }[];
   streakDays: number;
+  /** タイマーのいちご1個あたりの分数（学習時間の換算に使う） */
+  intervalMinutes: number;
+}
+
+/** 分数を「1時間30分」「45分」「0分」の形式に整形する */
+function formatStudyMinutes(totalMinutes: number): string {
+  const m = Math.max(0, Math.round(totalMinutes));
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  if (h === 0) return `${rest}分`;
+  if (rest === 0) return `${h}時間`;
+  return `${h}時間${rest}分`;
 }
 
 /** デュオリンゴ風の、直近7日間の獲得状況を横一列で見せるバー */
-function WeeklyStreakBar({ events, streakDays }: WeeklyStreakBarProps) {
+function WeeklyStreakBar({
+  events,
+  streakDays,
+  intervalMinutes,
+}: WeeklyStreakBarProps) {
   const dayKeys = getLastNJstDayKeys(7);
   const todayKey = dayKeys[dayKeys.length - 1];
+
+  // タップした日（吹き出し表示中の日）。同じ丸を再タップ／外側タップで閉じる。
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedKey) return;
+    const handleOutside = (e: PointerEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setSelectedKey(null);
+      }
+    };
+    document.addEventListener("pointerdown", handleOutside);
+    return () => document.removeEventListener("pointerdown", handleOutside);
+  }, [selectedKey]);
+
+  // 日ごとの学習時間（分）= タイマー由来のいちご数 × 1個あたりの分数
+  const timerCountByDay = new Map<string, number>();
+  events.forEach((e) => {
+    if (e.source !== "timer") return;
+    timerCountByDay.set(
+      e.jst_date,
+      (timerCountByDay.get(e.jst_date) ?? 0) + e.amount,
+    );
+  });
 
   const totalsByDay = new Map<string, number>();
   events.forEach((e) => {
@@ -396,8 +441,11 @@ function WeeklyStreakBar({ events, streakDays }: WeeklyStreakBarProps) {
         </span>
       </div>
 
-      <div className="flex w-full items-start justify-between gap-1">
-        {dayKeys.map((key) => {
+      <div
+        ref={containerRef}
+        className="flex w-full items-start justify-between gap-1"
+      >
+        {dayKeys.map((key, index) => {
           const achieved = (totalsByDay.get(key) ?? 0) > 0;
           const isToday = key === todayKey;
 
@@ -411,15 +459,60 @@ function WeeklyStreakBar({ events, streakDays }: WeeklyStreakBarProps) {
               >
                 {getWeekdayLabel(key)}
               </span>
-              <div
-                className={
-                  "aspect-square w-full max-w-9 rounded-full transition-colors " +
-                  (achieved
-                    ? "bg-red-400 shadow-sm"
-                    : "bg-gray-100 border-2 border-dashed border-gray-200") +
-                  (isToday ? " ring-2 ring-sky-400 ring-offset-2" : "")
-                }
-              />
+              <div className="relative w-full flex justify-center">
+                <div
+                  role={achieved ? "button" : undefined}
+                  tabIndex={achieved ? 0 : undefined}
+                  aria-label={
+                    achieved
+                      ? `${getWeekdayLabel(key)}曜日の学習時間を表示`
+                      : undefined
+                  }
+                  onClick={
+                    achieved
+                      ? () =>
+                          setSelectedKey((prev) => (prev === key ? null : key))
+                      : undefined
+                  }
+                  className={
+                    "aspect-square w-full max-w-9 rounded-full transition-colors " +
+                    (achieved
+                      ? "bg-red-400 shadow-sm cursor-pointer active:scale-95"
+                      : "bg-gray-100 border-2 border-dashed border-gray-200") +
+                    (isToday ? " ring-2 ring-sky-400 ring-offset-2" : "")
+                  }
+                />
+                {selectedKey === key && (
+                  <div
+                    className={
+                      "absolute top-full mt-2 z-20 whitespace-nowrap rounded-xl bg-gray-800 px-3 py-2 text-xs font-bold text-white shadow-lg pointer-events-none flex flex-col gap-0.5 " +
+                      (index <= 1
+                        ? "left-0"
+                        : index >= dayKeys.length - 2
+                          ? "right-0"
+                          : "left-1/2 -translate-x-1/2")
+                    }
+                  >
+                    <span
+                      className={
+                        "absolute bottom-full h-0 w-0 border-x-[6px] border-b-[6px] border-x-transparent border-b-gray-800 " +
+                        (index <= 1
+                          ? "left-3"
+                          : index >= dayKeys.length - 2
+                            ? "right-3"
+                            : "left-1/2 -translate-x-1/2")
+                      }
+                    />
+                    <span>いちご {totalsByDay.get(key) ?? 0}コ獲得</span>
+                    <span>
+                      学習時間{" "}
+                      {formatStudyMinutes(
+                        (timerCountByDay.get(key) ?? 0) * intervalMinutes,
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -436,6 +529,9 @@ export default function Home() {
   // フロント側では二重計算しない。
   const { events, todayTotal, streakDays } = usePointEvents();
   const { profile, pairId } = useProfile();
+  const { settings } = useTimerSettings();
+  const intervalMinutes =
+    settings?.interval_minutes ?? DEFAULT_TIMER_SETTINGS.interval_minutes;
 
   const clampedCount = Math.max(0, Math.min(MAX_STRAWBERRIES, todayTotal));
 
@@ -447,7 +543,11 @@ export default function Home() {
     <div className="flex flex-col items-center w-full">
       <StrawberryTree count={clampedCount} />
 
-      <WeeklyStreakBar events={events} streakDays={streakDays} />
+      <WeeklyStreakBar
+        events={events}
+        streakDays={streakDays}
+        intervalMinutes={intervalMinutes}
+      />
 
       {isSupporter && <SupporterLearningStats pairId={pairId} />}
     </div>
